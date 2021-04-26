@@ -1,20 +1,24 @@
 /***
    Parameters
 */
+int id = 0;
 int addr = 51; //initial I2C address
 bool unique = false;
 bool switchStat = false;
 int priority = 0;
 
+bool initialzed = false;
+
 /***
    Basic Functions
 */
 void i2cManInit() {
-  clearEEROM();
+  clearEEPROM();
   //If there is a determined address from the previous connection, ues it.
-  if (readFromEEROM(0).length() > 0) addr = readFromEERPM(0).toInt();
+  if (readFromEEPROM(0).length() > 0) addr = readFromEEPROM(0).toInt();
 
   Wire.begin(addr);
+  Wire.setClock(I2C_FREQUENCY);
   Wire.onRequest(requestEvent);
   Wire.onReceive(receiveEvent);
 
@@ -23,6 +27,12 @@ void i2cManInit() {
 
 void i2cManLoop() {
   unique = isUnique(addr);
+  
+  if (id != 0 && unique && !initialzed) { //if the address is unique, then do following
+    initialzed = true;
+    turnSwitch(HIGH);
+    digitalWrite(conncPin, HIGH);
+  }
 }
 
 /*
@@ -47,14 +57,30 @@ void receiveEvent() { //receive from Master
         break;
 
       case 3: //register an id
+        updateUid(args.toInt());
+        break;
+
+      case 4: //rearrange address by checking id
+        if (id != args.toInt()) { //not matched
+          updateI2cAddr(51);
+          id = 0;
+        }
         
+        break;
+
+      case 5: //turn OFF the switch
+        turnSwitch(LOW);
+        break;
+
+      case 6: //turn ON the switch
+        turnSwitch(HIGH);
         break;
     }
   }
 }
 
 void requestEvent() {
-  String resString = int2str(addr, 2) + String(unique) + String(switchStat) + String(priority) + int2str(current, 4);
+  String resString = int2str(addr, 2) + String(unique) + String(switchStat) + String(priority) + int2str(current, 4) + int2str(id, 4);
   byte res[resString.length()];
 
   for (byte i = 0; i < resString.length(); i++) res[i] = (byte)resString.charAt(i);
@@ -80,25 +106,13 @@ bool isUnique(int target) {
 */
 void updateI2cAddr(int newAddr) {
   addr = newAddr;
-  saveInEERPOM(0, int2str(addr, 2));
+  saveInEEPROM(0, int2str(addr, 2));
   Wire.begin(addr);
   Serial.println("The I2C address has been changed to " + String(addr));
 }
 
-/*
-   Format Utilities
-*/
-String int2str(int n, int leng) {
-  String re = "";
-
-  for (int i = leng - 1; i > 0; i--) {
-    if (n / (int)(pow(10, i) + ((n % 9 == 0) ? 1 : 0)) == 0) {
-      re += "0";
-      continue;
-    }
-
-    break;
-  }
-
-  return re + String(n);
+void updateUid(int newId) {
+  id = newId;
+  saveInEEPROM(2, int2str(addr, 4));
+  Serial.println("The UID has been changed to " + String(id));
 }

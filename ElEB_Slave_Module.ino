@@ -3,14 +3,28 @@
 #include <ezButton.h>
 #include <Thread.h>
 #include <StaticThreadController.h>
+#include <ACS712.h>
+
+#define MAX_CURRENT 1500
+#define I2C_FREQUENCY 100000
+
+/***
+   Pin Setups
+*/
+int currentSensPin = A3;
+int buttonPin = 3;
+int conncPin = 6;
+int relayPin = 5;
+int resetPin = 13;
 
 /***
    Global Parameters
 */
 int current = 0;
+ACS712 currentSens(currentSensPin, 5.0, 1023, 100);
 
 /***
-   Instances
+   Thread Instances
 */
 Thread* sensThread = new Thread();
 Thread* i2cThread = new Thread();
@@ -24,13 +38,14 @@ void setup() {
   i2cManInit();
 
   sensThread->onRun(sensLoop);
-  i2cThread->onRun(i2cManLoop);
   sensThread->setInterval(1);
+
+  i2cThread->onRun(i2cManLoop);
   i2cThread->setInterval(200);
 }
 
 void loop() {
   threadControl.run();
 
-  //delay(20);
+  delay(20);
 }

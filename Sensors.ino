@@ -1,12 +1,4 @@
 /***
-   Properties
-*/
-int relayPin = 3;
-int currentSensPin = A3;
-int buttonPin = 4;
-int resetPin = 5;
-
-/***
    Instances
 */
 const int PRESS_TIME = 2000; // 1000 milliseconds
@@ -17,17 +9,20 @@ unsigned long pressedTime  = 0;
 bool isPressing = false;
 bool isLongDetected = false;
 
+bool stimulation = false;
+
 /***
    Basic Functions
 */
 void sensInit() {
   digitalWrite(resetPin, HIGH);
-  
+
   pinMode(relayPin, OUTPUT);
+  pinMode(conncPin, OUTPUT);
   pinMode(resetPin, OUTPUT);
   pinMode(currentSensPin, INPUT);
 
-  digitalWrite(relayPin, HIGH);
+  currentSens.autoMidPoint(60);
 
   button.setDebounceTime(30);
 }
@@ -36,8 +31,8 @@ void sensLoop() {
   button.loop();
   buttonEvent();
 
-  current = mapCurrent(measureCurrent());
-  Serial.println(int2str(current, 4));
+  if (!stimulation) current = getCurrent();
+  Serial.println(int2str(getCurrent(), 4));
 }
 
 void buttonEvent() {
@@ -53,31 +48,47 @@ void buttonEvent() {
     long pressDuration = millis() - pressedTime;
 
     if ( pressDuration < PRESS_TIME )
-      Serial.println("A short press is detected");
+      Serial.println("Turn switch");
+      turnSwitch();
+
   }
 
   if (isPressing == true && isLongDetected == false) {
     long pressDuration = millis() - pressedTime;
 
     if ( pressDuration > PRESS_TIME ) {
-      Serial.println("Reset...");
-      digitalWrite(resetPin, LOW);
       isLongDetected = true;
+
+      if (stimulation) {
+        Serial.println("Close Stimulation...");
+        stimulation = false;
+        current = 0000;
+      } else {
+        Serial.println("Stimulate Overloading...");
+        stimulation = true;
+        current = 1600; //16A
+      }
+      
+      //digitalWrite(resetPin, LOW);
     }
   }
 }
 
-int measureCurrent() {
-  float collection = 0;
-
-  for (int i = 0; i < 5; i++) {
-    collection += pow(analogRead(currentSensPin), 2);
-    delay(20);
+void turnSwitch() {
+  turnSwitch((switchStat == false) ? HIGH : LOW);
+}
+void turnSwitch(int state) {
+  if (current >= MAX_CURRENT) state = false;
+  
+  if (state == HIGH) {
+    switchStat = true;
+  } else {
+    switchStat = false;
   }
 
-  return max((int)sqrt(collection / 5), 510);
+  digitalWrite(relayPin, state);
 }
 
-int mapCurrent(int amp) {
-  return map(amp, 510, 1023, 0, 1500);
+int getCurrent() {
+  return currentSens.mA_AC() / 10;
 }
