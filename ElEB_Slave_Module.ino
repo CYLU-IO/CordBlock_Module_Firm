@@ -35,17 +35,16 @@ void setup() {
   Serial.println("Program starts");
 
   sensInit();
-  i2cManInit();
+  i2cInit();
 
   sensThread->onRun(sensLoop);
   sensThread->setInterval(1);
 
-  i2cThread->onRun(i2cManLoop);
+  i2cThread->onRun(i2cLoop);
   i2cThread->setInterval(200);
 }
 
 void loop() {
   threadControl.run();
-
   delay(20);
 }

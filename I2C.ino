@@ -5,14 +5,13 @@ int id = 0;
 int addr = 51; //initial I2C address
 bool unique = false;
 bool switchStat = false;
-int priority = 0;
 
 bool initialzed = false;
 
 /***
    Basic Functions
 */
-void i2cManInit() {
+void i2cInit() {
   clearEEPROM();
   //If there is a determined address from the previous connection, ues it.
   if (readFromEEPROM(0).length() > 0) addr = readFromEEPROM(0).toInt();
@@ -25,13 +24,15 @@ void i2cManInit() {
   randomSeed(analogRead(0));
 }
 
-void i2cManLoop() {
+void i2cLoop() {
   unique = isUnique(addr);
-  
+
   if (id != 0 && unique && !initialzed) { //if the address is unique, then do following
     initialzed = true;
     turnSwitch(HIGH);
     digitalWrite(conncPin, HIGH);
+  } else {
+    digitalWrite(conncPin, LOW);
   }
 }
 
@@ -65,7 +66,7 @@ void receiveEvent() { //receive from Master
           updateI2cAddr(51);
           id = 0;
         }
-        
+
         break;
 
       case 5: //turn OFF the switch
@@ -80,7 +81,7 @@ void receiveEvent() { //receive from Master
 }
 
 void requestEvent() {
-  String resString = int2str(addr, 2) + String(unique) + String(switchStat) + String(priority) + int2str(current, 4) + int2str(id, 4);
+  String resString = int2str(addr, 2) + String(unique) + String(switchStat) + int2str(id, 4) + int2str(current, 4);
   byte res[resString.length()];
 
   for (byte i = 0; i < resString.length(); i++) res[i] = (byte)resString.charAt(i);
