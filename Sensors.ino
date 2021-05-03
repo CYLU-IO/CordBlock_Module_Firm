@@ -25,6 +25,7 @@ void sensInit() {
   currentSens.autoMidPoint(60);
 
   button.setDebounceTime(30);
+  reseedRandom(&reseedRandomSeed);
 }
 
 void sensLoop() {
@@ -32,7 +33,7 @@ void sensLoop() {
   buttonEvent();
 
   if (!stimulation) current = getCurrent();
-  Serial.println(int2str(getCurrent(), 4));
+  //Serial.println(int2str(getCurrent(), 4));
 }
 
 void buttonEvent() {

@@ -1,12 +1,13 @@
 #include <Wire.h>
-#include <EEPROM.h>
-#include <ezButton.h>
 #include <Thread.h>
-#include <StaticThreadController.h>
+#include <EEPROM.h>
 #include <ACS712.h>
+#include <ezButton.h>
+#include <ArduinoJson.h>
+#include <SoftwareSerial.h>
+#include <StaticThreadController.h>
 
 #define MAX_CURRENT 1500
-#define I2C_FREQUENCY 100000
 
 /***
    Pin Setups
@@ -21,7 +22,18 @@ int resetPin = 13;
    Global Parameters
 */
 int current = 0;
+uint32_t reseedRandomSeed EEMEM = 0xFFFFFFFF;
 ACS712 currentSens(currentSensPin, 5.0, 1023, 100);
+SoftwareSerial serial1(8, 7); // RX, TX
+
+/*
+   SlaveParameter
+*/
+int id = 0;
+int addr = 51; //initial I2C address
+bool unique = false;
+bool switchStat = false;
+bool initialized = false;
 
 /***
    Thread Instances
@@ -31,20 +43,23 @@ Thread* i2cThread = new Thread();
 StaticThreadController<2> threadControl (sensThread, i2cThread);
 
 void setup() {
-  Serial.begin(9600);
-  Serial.println("Program starts");
-
   sensInit();
-  i2cInit();
+  serialInit();
+  establishContact();
+  
+  //i2cInit();
 
+  /*
   sensThread->onRun(sensLoop);
   sensThread->setInterval(1);
 
   i2cThread->onRun(i2cLoop);
-  i2cThread->setInterval(200);
+  i2cThread->setInterval(1);*/
 }
 
 void loop() {
-  threadControl.run();
-  delay(20);
+  //threadControl.run();
+  receiveSerial1();
+
+  delay(1000);
 }

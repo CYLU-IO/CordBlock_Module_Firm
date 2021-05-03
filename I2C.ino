@@ -1,39 +1,26 @@
 /***
-   Parameters
-*/
-int id = 0;
-int addr = 51; //initial I2C address
-bool unique = false;
-bool switchStat = false;
-
-bool initialzed = false;
-
-/***
    Basic Functions
 */
 void i2cInit() {
-  clearEEPROM();
+  //clearEEPROM();
   //If there is a determined address from the previous connection, ues it.
-  if (readFromEEPROM(0).length() > 0) addr = readFromEEPROM(0).toInt();
+  //if (readFromEEPROM(0).length() > 0) addr = readFromEEPROM(0).toInt();
 
   Wire.begin(addr);
-  Wire.setClock(I2C_FREQUENCY);
   Wire.onRequest(requestEvent);
   Wire.onReceive(receiveEvent);
-
-  randomSeed(analogRead(0));
 }
 
 void i2cLoop() {
   unique = isUnique(addr);
 
-  if (id != 0 && unique && !initialzed) { //if the address is unique, then do following
-    initialzed = true;
+  if (id != 0 && unique && !initialized) { //if the address is unique, then do following
+    initialized = true;
     turnSwitch(HIGH);
     digitalWrite(conncPin, HIGH);
-  } else {
-    digitalWrite(conncPin, LOW);
   }
+
+  if (!unique) digitalWrite(conncPin, LOW);
 }
 
 /*
@@ -49,7 +36,6 @@ void receiveEvent() { //receive from Master
 
     switch (reqData.substring(0, 1).toInt()) {
       case 1: //randomly update address
-        randomSeed(analogRead(0));
         updateI2cAddr(random(args.substring(0, 2).toInt(), args.substring(2).toInt() + 1));
         break;
 
@@ -92,14 +78,14 @@ void requestEvent() {
 bool isUnique(int target) {
   String res = "";
 
-  Wire.requestFrom(target, 3);
+  Wire.requestFrom(target, 2);
 
   while (Wire.available()) {
     char b = Wire.read();
     res += b;
   }
 
-  return (res.substring(0).toInt() == target) ? false : true;
+  return (res.toInt() == target) ? false : true;
 }
 
 /*
@@ -107,13 +93,13 @@ bool isUnique(int target) {
 */
 void updateI2cAddr(int newAddr) {
   addr = newAddr;
-  saveInEEPROM(0, int2str(addr, 2));
+  //saveInEEPROM(0, int2str(addr, 2));
   Wire.begin(addr);
   Serial.println("The I2C address has been changed to " + String(addr));
 }
 
 void updateUid(int newId) {
   id = newId;
-  saveInEEPROM(2, int2str(addr, 4));
+  //saveInEEPROM(2, int2str(addr, 4));
   Serial.println("The UID has been changed to " + String(id));
 }
