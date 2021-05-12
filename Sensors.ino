@@ -3,7 +3,7 @@
 */
 const int PRESS_TIME = 2000; // 1000 milliseconds
 
-ezButton button(buttonPin);
+ezButton button(BUTTON_PIN);
 
 unsigned long pressedTime  = 0;
 bool isPressing = false;
@@ -15,12 +15,12 @@ bool stimulation = false;
    Basic Functions
 */
 void sensInit() {
-  digitalWrite(resetPin, HIGH);
-
-  pinMode(relayPin, OUTPUT);
-  pinMode(conncPin, OUTPUT);
-  pinMode(resetPin, OUTPUT);
-  pinMode(currentSensPin, INPUT);
+  digitalWrite(RESET_PIN, HIGH);
+  
+  pinMode(RELAY_PIN, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(RESET_PIN, OUTPUT);
+  pinMode(CURRENT_SENSOR_PIN, INPUT);
 
   currentSens.autoMidPoint(60);
 
@@ -33,7 +33,11 @@ void sensLoop() {
   buttonEvent();
 
   if (!stimulation) current = getCurrent();
-  //Serial.println(int2str(getCurrent(), 4));
+  
+  if (current >= MAX_CURRENT) {
+    turnSwitch(false);
+    blinkLED(1, 100);
+  }
 }
 
 void buttonEvent() {
@@ -48,10 +52,7 @@ void buttonEvent() {
 
     long pressDuration = millis() - pressedTime;
 
-    if ( pressDuration < PRESS_TIME )
-      Serial.println("Turn switch");
-      turnSwitch();
-
+    if ( pressDuration < PRESS_TIME ) turnSwitch(); //quick press
   }
 
   if (isPressing == true && isLongDetected == false) {
@@ -61,23 +62,39 @@ void buttonEvent() {
       isLongDetected = true;
 
       if (stimulation) {
-        Serial.println("Close Stimulation...");
+        blinkLED(2);
         stimulation = false;
         current = 0000;
       } else {
-        Serial.println("Stimulate Overloading...");
+        blinkLED(3);
         stimulation = true;
         current = 1600; //16A
       }
       
-      //digitalWrite(resetPin, LOW);
+      //digitalWrite(RESET_PIN, LOW);
     }
   }
+}
+
+void blinkLED(int times) {
+  blinkLED(times, 200);
+}
+
+void blinkLED(int times, int interval) {
+  for (int i = 0; i < times; i++) {
+    digitalWrite(LED_PIN, HIGH);
+    delay(interval);
+    digitalWrite(LED_PIN, LOW);
+    delay(interval);
+  }
+
+  digitalWrite(LED_PIN, HIGH);
 }
 
 void turnSwitch() {
   turnSwitch((switchStat == false) ? HIGH : LOW);
 }
+
 void turnSwitch(int state) {
   if (current >= MAX_CURRENT) state = false;
   
@@ -87,7 +104,7 @@ void turnSwitch(int state) {
     switchStat = false;
   }
 
-  digitalWrite(relayPin, state);
+  digitalWrite(RELAY_PIN, state);
 }
 
 int getCurrent() {
