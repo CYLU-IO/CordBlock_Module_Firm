@@ -32,9 +32,9 @@ void sensLoop() {
   button.loop();
   buttonEvent();
 
-  if (!stimulation) current = getCurrent();
+  if (!stimulation) module_info.current = getCurrent();
   
-  if (current >= MAX_CURRENT) {
+  if (module_info.current >= MAX_CURRENT) {
     turnSwitch(false);
     blinkLED(1, 100);
   }
@@ -64,11 +64,11 @@ void buttonEvent() {
       if (stimulation) {
         blinkLED(2);
         stimulation = false;
-        current = 0000;
+        module_info.current = 0000;
       } else {
         blinkLED(3);
         stimulation = true;
-        current = 1600; //16A
+        module_info.current = 1600; //16A
       }
       
       //digitalWrite(RESET_PIN, LOW);
@@ -88,20 +88,20 @@ void blinkLED(int times, int interval) {
     delay(interval);
   }
 
-  digitalWrite(LED_PIN, HIGH);
+  //digitalWrite(LED_PIN, HIGH);
 }
 
 void turnSwitch() {
-  turnSwitch((switchStat == false) ? HIGH : LOW);
+  turnSwitch((module_info.switchState == false) ? HIGH : LOW);
 }
 
 void turnSwitch(int state) {
-  if (current >= MAX_CURRENT) state = false;
+  if (module_info.current >= MAX_CURRENT) state = false;
   
   if (state == HIGH) {
-    switchStat = true;
+    module_info.switchState = true;
   } else {
-    switchStat = false;
+    module_info.switchState = false;
   }
 
   digitalWrite(RELAY_PIN, state);

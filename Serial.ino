@@ -1,81 +1,33 @@
+char m_altserial[512];
+
 void serialInit() {
   Serial.begin(9600);
-  serial1.begin(9600);
+  altSerial.begin(9600);
 }
 
 void establishContact() {
   while (Serial.available() <= 0) {
     Serial.print('A'); //knock signal
-    delay(200);
+    delay(300);
   }
 
   receiveSerial();
 }
 
-void receiveSerial() {
-  StaticJsonDocument<32> data;
-  DeserializationError err = deserializeJson(data, Serial);
-
-  if (data["action"].as<int>() == 1) {
-    id = (id == 0) ? random(1000, 9999) : id;
-    addr = data["addr"].as<int>() + 1; //update self-addr as serial's addr + 1
-    name += String(addr);
-    i2cInit(); //initialize I2C
-    initialized = true;
-
-    if (serial1.available() <= 0) { //no next slave detected
-      StaticJsonDocument<128> data;
-
-      data["action"] = 2;
-      data["amount"] = addr;
-
-      JsonArray modulesArr = data.createNestedArray("modules");
-      JsonArray moduleArr = modulesArr.createNestedArray();
-
-      moduleArr[0] = id; //id
-      moduleArr[1] = switchStat; //state
-      moduleArr[2] = current; //current
-      moduleArr[3] = name; //name
-
-      char re[128];
-      serializeJson(data, re);
-
-      Serial.print('C'); //start transferring return signal
-      Serial.print(re); //transfer json data
-      Serial.print('D'); //end transferring return signal
-    } else {
-      if (serial1.available() > 0) {
-        if (char(serial1.read()) == 'A') {
-          StaticJsonDocument<32> data;
-
-          data["action"] = 1;
-          data["addr"] = addr;
-
-          clearSerial1();
-          serializeJson(data, serial1);
-        }
-      }
-    }
-  }
+void alivePulse() {
+  //if (module_info.initialized) Serial.print('B'); //alive signal
 }
 
-void receiveSerial1() {
-  if (serial1.available() > 0) {
-    char sig = char(serial1.read());
+void receiveSerial() {
+  if (Serial.available() > 0) {
+    char sig = char(Serial.read());
 
-    if (sig == 'A') {
-      StaticJsonDocument<32> data;
-
-      data["action"] = 1;
-      data["addr"] = addr;
-
-      serializeJson(data, serial1);
-    } else if (sig == 'C') { //receive Return array from the next module
+    if (sig == 'C') {
       String m = "";
 
       while (true) {
-        if (serial1.available() > 0) {
-          char c = char(serial1.read());
+        if (Serial.available() > 0) {
+          char c = char(Serial.read());
 
           if (c == 'D') break;
 
@@ -83,16 +35,85 @@ void receiveSerial1() {
         }
       }
 
-      StaticJsonDocument<512> data;
+      StaticJsonDocument<16> data;
       DeserializationError err = deserializeJson(data, m);
+
+      if (err == DeserializationError::Ok) {
+        if (!module_info.initialized) {
+          strcpy(module_info.name, "Plug");
+          module_info.id = random(1000, 9999);
+          module_info.addr = data["addr"].as<int>() + 1; //update self-addr as serial's addr + 1
+          module_info.initialized = true;
+          
+          delay(100);
+        }
+
+        if (altSerial.available() <= 0) { //no next slave detected
+          module_info.lastModule = true;
+          StaticJsonDocument<64> data;
+
+          data["amount"] = module_info.addr;
+
+          JsonArray modulesArr = data.createNestedArray("modules");
+          JsonArray moduleArr = modulesArr.createNestedArray();
+
+          moduleArr[0] = module_info.id; //id
+          moduleArr[1] = module_info.switchState; //state
+          moduleArr[2] = module_info.current; //current
+          moduleArr[3] = module_info.name; //name
+
+          char re[64];
+          serializeJson(data, re);
+
+          Serial.print('C'); //start transferring return signal
+          Serial.print(re); //transfer json data
+          Serial.print('D'); //end transferring return signal
+
+          i2cInit();
+        }
+      }
+    }
+  }
+}
+
+void receivealtSerial() {
+  if (altSerial.available() > 0) {
+    char sig = char(altSerial.read());
+
+    if (sig == 'A' && module_info.initialized) {
+      StaticJsonDocument<16> data;
+
+      data["addr"] = module_info.addr;
+
+      //clearAltSerial();
+
+      altSerial.print('C');
+      serializeJson(data, altSerial);
+      altSerial.print('D');
+    } else if (sig == 'C') { //receive Return array from the next module
+      int _c = 0;
+
+      while (true) {
+        if (altSerial.available() > 0) {
+          char c = char(altSerial.read());
+
+          if (c == 'D') break;
+
+          m_altserial[_c] = c;
+          _c++;
+        }
+      }
+
+      StaticJsonDocument<512> data;
+      DeserializationError err = deserializeJson(data, m_altserial);
 
       if (err == DeserializationError::Ok) {
         JsonArray moduleArr = data["modules"].createNestedArray();
 
-        moduleArr[0] = id; //id
-        moduleArr[1] = switchStat; //state
-        moduleArr[2] = current; //current
-        moduleArr[3] = name; //name
+        moduleArr[0] = module_info.id; //id
+        moduleArr[1] = module_info.switchState; //state
+        moduleArr[2] = module_info.current; //current
+        moduleArr[3] = module_info.name; //name
 
         char re[512];
         serializeJson(data, re);
@@ -100,15 +121,21 @@ void receiveSerial1() {
         Serial.print('C'); //start transferring return signal
         Serial.print(re); //transfer json data
         Serial.print('D'); //end transferring return signal
+
+        i2cInit();
       }
     }
   }
+}
+
+void serialRestoreListener() {
+  return;
 }
 
 void clearSerial() {
   while (Serial.available() > 0) Serial.read();
 }
 
-void clearSerial1() {
-  while (serial1.available() > 0) serial1.read();
+void clearAltSerial() {
+  while (altSerial.available() > 0) altSerial.read();
 }

@@ -1,9 +1,11 @@
 #include <Wire.h>
+#include <Thread.h>
 #include <EEPROM.h>
 #include <ACS712.h>
 #include <ezButton.h>
 #include <ArduinoJson.h>
-#include <SoftwareSerial.h>
+#include <AltSoftSerial.h>
+#include <StaticThreadController.h>
 
 #define MAX_CURRENT 1500
 
@@ -16,40 +18,43 @@
 #define RELAY_PIN 5
 #define RESET_PIN 13
 
-/***
-   Global Parameters
-*/
-int current = 0;
-uint32_t reseedRandomSeed EEMEM = 0xFFFFFFFF;
-ACS712 currentSens(CURRENT_SENSOR_PIN, 5.0, 1023, 100);
-SoftwareSerial serial1(8, 7); // RX, TX
+typedef struct {
+  int id;
+  int addr;
+  int current;
+  char name[25];
+  bool switchState;
+  bool initialized;
+  bool lastModule;
+} Module_Info;
 
-/*
-   SlaveParameter
-*/
-String name = "插座";
-int id = 0;
-int addr = 51; //initial I2C address
-bool switchStat = false;
-bool initialized = false;
+/*** Global Data ***/
+uint32_t reseedRandomSeed EEMEM = 0xFFFFFFFF;
+Module_Info module_info;
+ACS712 currentSens(CURRENT_SENSOR_PIN, 5.0, 1023, 100);
+AltSoftSerial altSerial;
+
+/*** Thread Instances ***/
+Thread* alivePulseThread = new Thread();
+StaticThreadController<1> threadControl (alivePulseThread);
 
 void setup() {
+  module_info.initialized = false;
+
   sensInit();
   serialInit();
+
+  //alivePulseThread->onRun(alivePulse);
+  //alivePulseThread->setInterval(300);
 }
 
 void loop() {
-  if (!initialized) establishContact();
-  
+  if (!module_info.initialized) {
+    establishContact();
+  }
+
   sensLoop();
-  receiveSerial1();
-
-  /*
-  if (serial1.available()) { //receive from next slave
-    String m = "";
-
-    while (serial1.available() > 0) m += char(serial1.read());
-
-    Serial.println(m);
-  }*/
+  //receiveSerial();
+  receivealtSerial();
+  //threadControl.run();
 }
