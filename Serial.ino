@@ -10,8 +10,6 @@ void establishContact() {
     Serial.print('A'); //knock signal
     delay(300);
   }
-
-  receiveSerial();
 }
 
 void alivePulse() {
@@ -35,43 +33,57 @@ void receiveSerial() {
         }
       }
 
-      StaticJsonDocument<16> data;
-      DeserializationError err = deserializeJson(data, m);
+      if (!module_info.initialized) {
+        StaticJsonDocument<16> data;
+        DeserializationError err = deserializeJson(data, m);
 
-      if (err == DeserializationError::Ok) {
-        if (!module_info.initialized) {
+        if (err == DeserializationError::Ok) {
           strcpy(module_info.name, "Plug");
           module_info.id = random(1000, 9999);
           module_info.addr = data["addr"].as<int>() + 1; //update self-addr as serial's addr + 1
+
+          if (altSerial.available() <= 0) { //no next slave detected
+            module_info.lastModule = true;
+            StaticJsonDocument<64> data;
+
+            data["amount"] = module_info.addr;
+
+            JsonArray modulesArr = data.createNestedArray("modules");
+            JsonArray moduleArr = modulesArr.createNestedArray();
+
+            moduleArr[0] = module_info.id; //id
+            moduleArr[1] = module_info.switchState; //state
+            moduleArr[2] = module_info.current; //current
+            moduleArr[3] = module_info.name; //name
+
+            char re[64];
+            serializeJson(data, re);
+
+            Serial.print('C'); //start transferring return signal
+            Serial.print(re); //transfer json data
+            Serial.print('D'); //end transferring return signal
+          } else {
+            StaticJsonDocument<16> data;
+
+            data["addr"] = module_info.addr;
+
+            //clearAltSerial();
+
+            altSerial.print('C');
+            serializeJson(data, altSerial);
+            altSerial.print('D');
+          }
+
           module_info.initialized = true;
-          
-          delay(100);
         }
-
-        if (altSerial.available() <= 0) { //no next slave detected
-          module_info.lastModule = true;
-          StaticJsonDocument<64> data;
-
-          data["amount"] = module_info.addr;
-
-          JsonArray modulesArr = data.createNestedArray("modules");
-          JsonArray moduleArr = modulesArr.createNestedArray();
-
-          moduleArr[0] = module_info.id; //id
-          moduleArr[1] = module_info.switchState; //state
-          moduleArr[2] = module_info.current; //current
-          moduleArr[3] = module_info.name; //name
-
-          char re[64];
-          serializeJson(data, re);
-
-          Serial.print('C'); //start transferring return signal
-          Serial.print(re); //transfer json data
-          Serial.print('D'); //end transferring return signal
-
-          i2cInit();
-        }
+      } else {
+        //after init. json
       }
+    } else if (sig == 'I') {
+      i2cInit();
+      digitalWrite(LED_PIN, HIGH);
+      altSerial.print('I'); //pass to next module
+      module_info.completeInit = true;
     }
   }
 }
@@ -104,7 +116,7 @@ void receivealtSerial() {
         }
       }
 
-      StaticJsonDocument<512> data;
+      StaticJsonDocument<1024> data;
       DeserializationError err = deserializeJson(data, m_altserial);
 
       if (err == DeserializationError::Ok) {
@@ -120,16 +132,10 @@ void receivealtSerial() {
 
         Serial.print('C'); //start transferring return signal
         Serial.print(re); //transfer json data
-        Serial.print('D'); //end transferring return signal
-
-        i2cInit();
+        Serial.print('D'); //end transferring return signal*/
       }
     }
   }
-}
-
-void serialRestoreListener() {
-  return;
 }
 
 void clearSerial() {

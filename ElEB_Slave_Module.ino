@@ -1,11 +1,9 @@
 #include <Wire.h>
-#include <Thread.h>
 #include <EEPROM.h>
 #include <ACS712.h>
 #include <ezButton.h>
 #include <ArduinoJson.h>
 #include <AltSoftSerial.h>
-#include <StaticThreadController.h>
 
 #define MAX_CURRENT 1500
 
@@ -25,36 +23,26 @@ typedef struct {
   char name[25];
   bool switchState;
   bool initialized;
+  bool completeInit;
   bool lastModule;
 } Module_Info;
 
 /*** Global Data ***/
-uint32_t reseedRandomSeed EEMEM = 0xFFFFFFFF;
 Module_Info module_info;
-ACS712 currentSens(CURRENT_SENSOR_PIN, 5.0, 1023, 100);
 AltSoftSerial altSerial;
-
-/*** Thread Instances ***/
-Thread* alivePulseThread = new Thread();
-StaticThreadController<1> threadControl (alivePulseThread);
+uint32_t reseedRandomSeed EEMEM = 0xFFFFFFFF;
+ACS712 currentSens(CURRENT_SENSOR_PIN, 5.0, 1023, 100);
 
 void setup() {
   module_info.initialized = false;
-
+  
   sensInit();
   serialInit();
-
-  //alivePulseThread->onRun(alivePulse);
-  //alivePulseThread->setInterval(300);
+  establishContact();
 }
 
 void loop() {
-  if (!module_info.initialized) {
-    establishContact();
-  }
-
   sensLoop();
-  //receiveSerial();
+  receiveSerial();
   receivealtSerial();
-  //threadControl.run();
 }

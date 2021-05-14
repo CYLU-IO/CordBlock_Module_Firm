@@ -27,11 +27,6 @@ void receiveEvent() { //receive from Master
       case 2: //turn switch off
         turnSwitch(LOW);
         break;
-
-      case 9: //start working
-        //turnSwitch(HIGH);
-        digitalWrite(LED_PIN, HIGH);
-        break;
     }
   }
 }
