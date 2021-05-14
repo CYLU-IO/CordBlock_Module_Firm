@@ -1,9 +1,11 @@
 #include <Wire.h>
+#include <Thread.h>
 #include <EEPROM.h>
 #include <ACS712.h>
 #include <ezButton.h>
 #include <ArduinoJson.h>
 #include <AltSoftSerial.h>
+#include <StaticThreadController.h>
 
 #define MAX_CURRENT 1500
 
@@ -33,9 +35,16 @@ AltSoftSerial altSerial;
 uint32_t reseedRandomSeed EEMEM = 0xFFFFFFFF;
 ACS712 currentSens(CURRENT_SENSOR_PIN, 5.0, 1023, 100);
 
+/*** Thread Instances ***/
+Thread* alivePulseThread = new Thread();
+StaticThreadController<1> threadControl (alivePulseThread);
+
 void setup() {
   module_info.initialized = false;
-  
+
+  //alivePulseThread->onRun(alivePulse);
+  //alivePulseThread->setInterval(300);
+
   sensInit();
   serialInit();
   establishContact();
@@ -45,4 +54,5 @@ void loop() {
   sensLoop();
   receiveSerial();
   receivealtSerial();
+  //threadControl.run();
 }

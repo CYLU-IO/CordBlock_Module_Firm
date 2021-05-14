@@ -13,7 +13,7 @@ void establishContact() {
 }
 
 void alivePulse() {
-  //if (module_info.initialized) Serial.print('B'); //alive signal
+  //if (module_info.completeInit) Serial.print('B'); //alive signal
 }
 
 void receiveSerial() {
@@ -41,6 +41,9 @@ void receiveSerial() {
           strcpy(module_info.name, "Plug");
           module_info.id = random(1000, 9999);
           module_info.addr = data["addr"].as<int>() + 1; //update self-addr as serial's addr + 1
+
+          altSerial.print('H'); //say Hi
+          delay(100);
 
           if (altSerial.available() <= 0) { //no next slave detected
             module_info.lastModule = true;
@@ -79,6 +82,9 @@ void receiveSerial() {
       } else {
         //after init. json
       }
+    } else if (sig == 'H' && module_info.initialized) {
+      module_info.initialized = false;
+      Serial.print('H');
     } else if (sig == 'I') {
       i2cInit();
       digitalWrite(LED_PIN, HIGH);
