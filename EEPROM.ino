@@ -1,63 +1,57 @@
-void clearEEPROM() {
-  for (int i = 0 ; i < EEPROM.length() ; i++) EEPROM.write(i, 0);
+template <class T> int eeprom_write(int ee, const T& value) {
+  const byte* p = (const byte*)(const void*)&value;
+  int i;
+  for (i = 0; i < sizeof(value); i++)
+    EEPROM.write(ee++, *p++);
+  return i;
 }
 
-void saveInEEPROM(char add, String data) {
-  int _size = data.length();
+template <class T> int eeprom_read(int ee, T& value) {
+  byte* p = (byte*)(void*)&value;
   int i;
-
-  for (i = 0; i < _size; i++) EEPROM.write(add + i, data[i]);
-
-  EEPROM.write(add + _size, '\0'); //Add termination null character for String Data
+  for (i = 0; i < sizeof(value); i++)
+    *p++ = EEPROM.read(ee++);
+  return i;
 }
 
+void eeprom_erase() {
+  uint16_t address = 0;
+  uint8_t dump_row[16];
 
-String readFromEEPROM(char add) {
-  int i;
-  char data[100]; //Max 100 Bytes
-  int len = 0;
-  unsigned char k;
-
-  k = EEPROM.read(add);
-
-  while (k != '\0' && len < 500) { //Read until null character
-    k = EEPROM.read(add + len);
-    data[len] = k;
-    len++;
+  while (address < 512) {
+    memset(dump_row, 0x00, sizeof(dump_row));
+    eeprom_write_block(dump_row, (void*)address, sizeof(dump_row));
+    address += sizeof(dump_row);
   }
-
-  data[len] = '\0';
-
-  return String(data);
 }
 
 /*
    Random Seed
 */
-void reseedRandom( uint32_t* address ) {
+void reseedRandom(uint32_t* address) {
   static const uint32_t HappyPrime = 127807 /*937*/;
   uint32_t raw;
   unsigned long seed;
 
-  raw = eeprom_read_dword( address );
+  raw = eeprom_read_dword(address);
 
-  do{
+  do {
     raw += HappyPrime;
     seed = raw & 0x7FFFFFFF;
-  } while ( (seed < 1) || (seed > 2147483646) );
+  } while ((seed < 1) || (seed > 2147483646));
 
-  srandom( seed );
-  eeprom_write_dword( address, raw );
+  srandom(seed);
+  eeprom_write_dword(address, raw);
 }
 
-inline void reseedRandom( unsigned short address ) {
-  reseedRandom( (uint32_t*)(address) );
+inline void reseedRandom(unsigned short address) {
+  reseedRandom((uint32_t*)(address));
 }
 
-void reseedRandomInit( uint32_t* address, uint32_t value ) {
-  eeprom_write_dword( address, value );
+void reseedRandomInit(uint32_t* address, uint32_t value) {
+  eeprom_write_dword(address, value);
 }
 
-inline void reseedRandomInit( unsigned short address, uint32_t value ) {
-  reseedRandomInit( (uint32_t*)(address), value );
+inline void reseedRandomInit(unsigned short address, uint32_t value) {
+  reseedRandomInit((uint32_t*)(address), value);
 }

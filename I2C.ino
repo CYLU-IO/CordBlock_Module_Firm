@@ -2,17 +2,11 @@
    Basic Functions
 */
 void i2cInit() {
-  //clearEEPROM();
-  //If there is a determined address from the previous connection, ues it.
-  //if (readFromEEPROM(0).length() > 0) addr = readFromEEPROM(0).toInt();
-
-  Wire.begin(module_info.addr);
+  Wire.begin(module_status.addr);
   Wire.onRequest(requestEvent);
   Wire.onReceive(receiveEvent);
 }
-/*
-   I2C Utilites
-*/
+
 void receiveEvent() { //receive from Master
   String reqData, args = "";
 
@@ -32,7 +26,7 @@ void receiveEvent() { //receive from Master
 }
 
 void requestEvent() {
-  String str = int2str(module_info.id, 4) + String(module_info.switchState) + int2str(module_info.current, 4);
+  String str = int2str(module_config.id, 4) + String(module_config.switchState) + int2str(module_status.current, 4);
   byte re[str.length()];
 
   for (byte i = 0; i < str.length(); i++) re[i] = (byte)str.charAt(i);

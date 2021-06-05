@@ -1,49 +1,53 @@
 #include <Wire.h>
-#include <Thread.h>
+#include <CRC32.h>
 #include <EEPROM.h>
 #include <ACS712.h>
 #include <ezButton.h>
 #include <ArduinoJson.h>
+#include <StreamUtils.h>
 #include <AltSoftSerial.h>
-#include <StaticThreadController.h>
+
 
 #define MAX_CURRENT 1500
 
-/***
-   Pin Setups
-*/
-#define CURRENT_SENSOR_PIN A3
+/*** Pin Setups ***/
+#define RST_PIN 2
 #define BUTTON_PIN 3
 #define LED_PIN 6
 #define RELAY_PIN 5
-#define RESET_PIN 13
+#define CURRENT_SENSOR_PIN A3
 
-typedef struct {
+struct config_t {
   int id;
-  int addr;
-  int current;
+  int type;
   char name[25];
   bool switchState;
   bool initialized;
+} module_config;
+
+struct Module_status {
+  int addr;
+  int current;
+  bool initialized;
   bool completeInit;
   bool lastModule;
-} Module_Info;
+} module_status;
+
+/*** EEPROM Addressing ***/
+#define  module_config_eeprom_address 0x00
+uint32_t reseedRandomSeed EEMEM = 0xFFFFFFFF;
 
 /*** Global Data ***/
-Module_Info module_info;
 AltSoftSerial altSerial;
-uint32_t reseedRandomSeed EEMEM = 0xFFFFFFFF;
 ACS712 currentSens(CURRENT_SENSOR_PIN, 5.0, 1023, 100);
 
-/*** Thread Instances ***/
-Thread* alivePulseThread = new Thread();
-StaticThreadController<1> threadControl (alivePulseThread);
-
 void setup() {
-  module_info.initialized = false;
+  //eeprom_erase();
+  eeprom_read(module_config_eeprom_address, module_config);
 
-  //alivePulseThread->onRun(alivePulse);
-  //alivePulseThread->setInterval(300);
+  if (!module_config.initialized) { //new device
+    module_config.type = 1; //American plug
+  }
 
   sensInit();
   serialInit();
@@ -53,6 +57,5 @@ void setup() {
 void loop() {
   sensLoop();
   receiveSerial();
-  receivealtSerial();
-  //threadControl.run();
+  receiveAltserial();
 }

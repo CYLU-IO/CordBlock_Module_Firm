@@ -15,11 +15,11 @@ bool stimulation = false;
    Basic Functions
 */
 void sensInit() {
-  digitalWrite(RESET_PIN, HIGH);
+  digitalWrite(RST_PIN, HIGH);
   
   pinMode(RELAY_PIN, OUTPUT);
   pinMode(LED_PIN, OUTPUT);
-  pinMode(RESET_PIN, OUTPUT);
+  pinMode(RST_PIN, OUTPUT);
   pinMode(CURRENT_SENSOR_PIN, INPUT);
 
   currentSens.autoMidPoint(60);
@@ -32,9 +32,9 @@ void sensLoop() {
   button.loop();
   buttonEvent();
 
-  if (!stimulation) module_info.current = getCurrent();
+  if (!stimulation) module_status.current = getCurrent();
   
-  if (module_info.current >= MAX_CURRENT) {
+  if (module_status.current >= MAX_CURRENT) {
     turnSwitch(false);
     blinkLED(1, 100);
   }
@@ -64,14 +64,14 @@ void buttonEvent() {
       if (stimulation) {
         blinkLED(2);
         stimulation = false;
-        module_info.current = 0000;
+        module_status.current = 0000;
       } else {
         blinkLED(3);
         stimulation = true;
-        module_info.current = 1600; //16A
+        module_status.current = 1600; //16A
       }
       
-      //digitalWrite(RESET_PIN, LOW);
+      //digitalWrite(RST_PIN, LOW);
     }
   }
 }
@@ -81,6 +81,10 @@ void blinkLED(int times) {
 }
 
 void blinkLED(int times, int interval) {
+  int origin = digitalRead(LED_PIN);
+
+  digitalWrite(LED_PIN, LOW);
+  
   for (int i = 0; i < times; i++) {
     digitalWrite(LED_PIN, HIGH);
     delay(interval);
@@ -88,23 +92,24 @@ void blinkLED(int times, int interval) {
     delay(interval);
   }
 
-  //digitalWrite(LED_PIN, HIGH);
+  digitalWrite(LED_PIN, origin);
 }
 
 void turnSwitch() {
-  turnSwitch((module_info.switchState == false) ? HIGH : LOW);
+  turnSwitch((module_config.switchState == false) ? HIGH : LOW);
 }
 
 void turnSwitch(int state) {
-  if (module_info.current >= MAX_CURRENT) state = false;
+  if (module_status.current >= MAX_CURRENT) state = false;
   
   if (state == HIGH) {
-    module_info.switchState = true;
+    module_config.switchState = true;
   } else {
-    module_info.switchState = false;
+    module_config.switchState = false;
   }
 
   digitalWrite(RELAY_PIN, state);
+  eeprom_write(module_config_eeprom_address, module_config); //save state
 }
 
 int getCurrent() {
