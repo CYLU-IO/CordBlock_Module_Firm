@@ -102,13 +102,10 @@ void turnSwitch() {
 void turnSwitch(int state) {
   if (module_status.current >= MAX_CURRENT) state = false;
   
-  if (state == HIGH) {
-    module_config.switchState = true;
-  } else {
-    module_config.switchState = false;
-  }
+  module_config.switchState = state;
 
   digitalWrite(RELAY_PIN, state);
+  sendUpdateMaster(Serial, MODULE_SWITCH_STATE, (int)state);
   eeprom_write(module_config_eeprom_address, module_config); //save state
 }
 

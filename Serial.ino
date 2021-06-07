@@ -1,17 +1,3 @@
-#define CMD_OK              0x10
-#define CMD_FAIL            0x11
-#define CMD_PASS_MSG        0x12
-#define CMD_INSYNC          0x14
-#define CMD_NOSYNC          0x15
-#define CMD_EOF             0x20
-#define CMD_REQ_ADR         0x41 //'A'
-#define CMD_LOAD_MODULE     0x42 //'B'
-#define CMD_CONFIRM_RECEIVE 0x43 //'C'
-#define CMD_LINK_MODULE     0x4C //'L'
-#define CMD_INIT_MODULE     0x49 //'I'
-#define CMD_HI              0x52 //'H'
-#define CMD_START           0xFF
-
 StaticJsonDocument<96> data;
 int cmdLength;
 char cmdBuf[96];
@@ -22,6 +8,9 @@ void serialInit() {
 }
 
 void establishContact() {
+  clearSerial(Serial);
+  clearSerial(altSerial);
+
   while (Serial.available() <= 0) {
     sendCmd(Serial, CMD_REQ_ADR);
 
@@ -38,7 +27,8 @@ void receiveSerial() {
 
     switch (cmd) {
       case CMD_LOAD_MODULE:
-        if (cmdLength == 0) return;
+        digitalWrite(LED_PIN, LOW);
+        if (cmdLength < 1) return;
 
         sendCmd(altSerial, CMD_HI);
         module_status.addr = (int)cmdBuf[0] + 1; //update self-addr as the increasement of the previous addr
@@ -46,6 +36,7 @@ void receiveSerial() {
         if (!module_config.initialized) {
           module_config.id = random(1000, 9999);
           strcpy(module_config.name, (String("Switch ") + String(module_status.addr)).c_str());
+          module_config.initialized = true;
         }
 
         delay(100);
@@ -79,13 +70,29 @@ void receiveSerial() {
 
       case CMD_INIT_MODULE:
         sendCmd(altSerial, CMD_INIT_MODULE); //pass to next module
-
-        delay(100);
-
-        i2cInit();
         turnSwitch(module_config.switchState);
         module_status.completeInit = true;
         digitalWrite(LED_PIN, HIGH);
+        break;
+
+      case CMD_DO_MODULE:
+        if (cmdLength < 2) return; //at least needs a targeted address
+
+        sendCmd(altSerial, CMD_DO_MODULE, cmdBuf, cmdLength); //pass first
+
+        for (int i = 1; i < cmdLength; i++) {
+          if (cmdBuf[i] != module_status.addr) continue; //not my turn
+
+          switch ((uint8_t)cmdBuf[0]) { //actions
+            case DO_TURN_ON:
+              turnSwitch(HIGH);
+              break;
+
+            case DO_TURN_OFF:
+              turnSwitch(LOW);
+              break;
+          }
+        }
         break;
     }
   }
@@ -99,15 +106,15 @@ void receiveAltserial() {
 
     switch (cmd) {
       case CMD_REQ_ADR:
-        if (module_status.completeInit) sendAddress(altSerial);
-        digitalWrite(LED_PIN, LOW);
+        sendAddress(altSerial);
+        break;
+
+      case CMD_UPDATE_MASTER:
+        sendCmd(Serial, CMD_UPDATE_MASTER, cmdBuf, cmdLength);
         break;
 
       case CMD_LINK_MODULE:
         sendCmd(Serial, CMD_LINK_MODULE, cmdBuf, cmdLength); //pass first
-
-        if (receiveCmd(Serial) != CMD_CONFIRM_RECEIVE) return;
-
         DeserializationError err = deserializeJson(data, cmdBuf);
 
         if (err == DeserializationError::Ok) {
@@ -123,10 +130,25 @@ void receiveAltserial() {
           serializeJson(data, p, l);
           sendCmd(Serial, CMD_LINK_MODULE, p, l);
           free(p);
+        } else {
+          sendAddress(altSerial);
         }
+        break;
+
+      default:
         break;
     }
   }
+}
+
+void sendAddress(Stream &_serial) {
+  char p[1] = {module_status.addr};
+  sendCmd(_serial, CMD_LOAD_MODULE, p, sizeof(p)); //pass self-addr
+}
+
+void sendUpdateMaster(Stream &_serial, char type, int value) {
+  char p[3] = {module_status.addr, type, value};
+  sendCmd(_serial, CMD_UPDATE_MASTER, p, sizeof(p));
 }
 
 /*** Util ***/
@@ -171,7 +193,7 @@ void sendCmd(Stream &_serial, char cmd, char* payload, int length) {
   buf[1] = cmd; //cmd_byte
   buf[2] = length & 0xff; //data_length - low byte
   buf[3] = (length >> 8) & 0xff; //data_length - high byte
-  buf[4 + length] = (char)calcCRC(payload); //checksum
+  buf[4 + length] = CMD_FAIL; //checksum
   buf[5 + length] = CMD_EOF; //stop_byte
 
   for (int i = 0; i < length; i++) //load buf
@@ -179,7 +201,6 @@ void sendCmd(Stream &_serial, char cmd, char* payload, int length) {
 
   for (int i = 0; i < sizeof(buf); i++)
     serial->print(buf[i]);
-
 }
 void sendCmd(Stream &_serial, char cmd) {
   char *p = 0x00;
@@ -193,11 +214,6 @@ char serialRead(Stream &_serial) {
     delay(1);
 
   return (uint8_t)serial->read();
-}
-
-void sendAddress(Stream &_serial) {
-  char p[1] = {module_status.addr};
-  sendCmd(_serial, CMD_LOAD_MODULE, p, sizeof(p)); //pass self-addr
 }
 
 void eraseCmdBuf() {

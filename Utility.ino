@@ -12,10 +12,3 @@ String int2str(int n, int leng) {
 
   return re + String(n);
 }
-
-uint8_t calcCRC(char* str) {
-  CRC32 crc;
-  for (int i = 0; i < strlen(str); i++) crc.update(str[i]);
-
-  return crc.finalize();
-}
