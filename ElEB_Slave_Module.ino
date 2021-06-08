@@ -1,9 +1,9 @@
-#include <Wire.h>
+#include <CRC.h>
+#include <CRC8.h>
 #include <EEPROM.h>
 #include <ACS712.h>
 #include <ezButton.h>
 #include <ArduinoJson.h>
-#include <StreamUtils.h>
 #include <AltSoftSerial.h>
 
 
@@ -64,7 +64,7 @@ ACS712 currentSens(CURRENT_SENSOR_PIN, 5.0, 1023, 100);
 void setup() {
   eeprom_read(module_config_eeprom_address, module_config);
 
-  if (module_config.initialized == 255) eeprom_erase();
+  if (module_config.initialized == 255 || module_config.id < 1000 || module_config.id > 9999) eeprom_erase();
 
   if (!module_config.initialized) {
     module_config.type = 1; //American plug

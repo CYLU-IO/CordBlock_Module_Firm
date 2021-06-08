@@ -61,7 +61,6 @@ void receiveSerial() {
         }
 
         module_status.initialized = true;
-        eeprom_write(module_config_eeprom_address, module_config);
         break;
 
       case CMD_HI:
@@ -75,7 +74,8 @@ void receiveSerial() {
 
         for (int i = 0; i < cmdLength; i++) {
           if (cmdBuf[i] != module_status.addr) continue; //not my turn
-          
+
+          eeprom_write(module_config_eeprom_address, module_config);
           turnSwitch(module_config.switchState);
           module_status.completeInit = true;
           digitalWrite(LED_PIN, HIGH);
@@ -183,9 +183,9 @@ char receiveCmd(Stream &_serial) {
       buf_count++;
     }
 
-    char checksum = serialRead(_serial); //checksum, don't bother it yett
+    uint8_t checksum = serialRead(_serial); //checksum
 
-    if (serialRead(_serial) != CMD_EOF) return CMD_FAIL; //error
+    if (serialRead(_serial) != CMD_EOF && calcCRC(cmdBuf, cmdLength) != checksum) return CMD_FAIL; //error
 
     return cmd;
   }
@@ -201,7 +201,7 @@ void sendCmd(Stream &_serial, char cmd, char* payload, int length) {
   buf[1] = cmd; //cmd_byte
   buf[2] = length & 0xff; //data_length - low byte
   buf[3] = (length >> 8) & 0xff; //data_length - high byte
-  buf[4 + length] = CMD_FAIL; //checksum
+  buf[4 + length] = calcCRC(payload, length); //checksum
   buf[5 + length] = CMD_EOF; //stop_byte
 
   for (int i = 0; i < length; i++) //load buf
