@@ -69,10 +69,17 @@ void receiveSerial() {
         break;
 
       case CMD_INIT_MODULE:
-        sendCmd(altSerial, CMD_INIT_MODULE); //pass to next module
-        turnSwitch(module_config.switchState);
-        module_status.completeInit = true;
-        digitalWrite(LED_PIN, HIGH);
+        if (cmdLength < 1) return; //at least needs a targeted address
+
+        sendCmd(altSerial, CMD_INIT_MODULE, cmdBuf, cmdLength); //pass first
+
+        for (int i = 0; i < cmdLength; i++) {
+          if (cmdBuf[i] != module_status.addr) continue; //not my turn
+          
+          turnSwitch(module_config.switchState);
+          module_status.completeInit = true;
+          digitalWrite(LED_PIN, HIGH);
+        }
         break;
 
       case CMD_DO_MODULE:
@@ -118,6 +125,7 @@ void receiveAltserial() {
         DeserializationError err = deserializeJson(data, cmdBuf);
 
         if (err == DeserializationError::Ok) {
+          if (data["id"].as<int>() == module_config.id) module_config.id = random(1000, 9999); //conflict id
           if (data["addr"].as<int>() - 1 != module_status.addr) return; //not my turn yet
 
           data["addr"] = module_status.addr;
