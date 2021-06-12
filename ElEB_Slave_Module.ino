@@ -59,7 +59,7 @@ uint32_t reseedRandomSeed EEMEM = 0xFFFFFFFF;
 
 /*** Global Data ***/
 AltSoftSerial altSerial;
-ACS712 currentSens(CURRENT_SENSOR_PIN, 5.0, 1023, 100);
+ACS712 currentSens(CURRENT_SENSOR_PIN, 5.0, 1024, 100);
 
 void setup() {
   eeprom_read(module_config_eeprom_address, module_config);
