@@ -6,7 +6,7 @@ void i2cInit() {
 void i2cReceiveCmd(int length) {
   static char i2c_cmd;
   static int i2c_cmdLength = 0;
-  static char i2c_cmdBuf[1 + MAX_MODULES]; //action, targetted modules addr...
+  static char i2c_cmdBuf[MAX_MODULES * 2]; //(addr, action) * MAX_MODULES
 
   while (Wire.available()) {
     /*** Receive CMD ***/
@@ -34,12 +34,12 @@ void i2cReceiveCmd(int length) {
       /*** Execute CMD ***/
       switch (i2c_cmd) {
         case CMD_DO_MODULE:
-          if (i2c_cmdLength < 2) return; //at least needs a targeted address
+          if (i2c_cmdLength < 2) return; //at least needs a pair action
 
-          for (int i = 1; i < i2c_cmdLength; i++) {
-            if (i2c_cmdBuf[i] != module_status.addr) continue; //not my turn
+          for (int i = 0; i < i2c_cmdLength / 2; i++) {
+            if (i2c_cmdBuf[i * 2] != module_status.addr) continue; //not my turn
 
-            switch ((uint8_t)i2c_cmdBuf[0]) { //actions
+            switch ((uint8_t)i2c_cmdBuf[i * 2 + 1]) { //actions
               case DO_TURN_ON:
                 turnSwitch(HIGH);
                 break;

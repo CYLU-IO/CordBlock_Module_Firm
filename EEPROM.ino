@@ -15,7 +15,7 @@ template <class T> int eeprom_read(int ee, T& value) {
 }
 
 void eeprom_erase() {
-  uint16_t address = 0;
+  uint16_t address = 1;
   uint8_t dump_row[16];
 
   while (address < 512) {

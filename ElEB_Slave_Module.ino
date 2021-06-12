@@ -56,8 +56,8 @@ struct Module_status {
 } module_status;
 
 /*** EEPROM Addressing ***/
-#define  module_config_eeprom_address 0x00
-uint32_t reseedRandomSeed EEMEM = 0xFFFFFFFF;
+#define  module_config_eeprom_address 0x10
+uint32_t reseedRandomSeed EEMEM = 0x00;
 
 /*** Global Data ***/
 AltSoftSerial altSerial;

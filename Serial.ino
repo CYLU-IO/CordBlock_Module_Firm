@@ -75,6 +75,7 @@ void receiveSerial() {
         for (int i = 0; i < cmdLength; i++) {
           if (cmdBuf[i] != module_status.addr) continue; //not my turn
 
+          eeprom_erase();
           eeprom_write(module_config_eeprom_address, module_config);
           turnSwitch(module_config.switchState);
           module_status.completeInit = true;
