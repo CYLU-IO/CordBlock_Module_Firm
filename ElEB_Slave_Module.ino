@@ -1,5 +1,6 @@
 #include <CRC.h>
 #include <CRC8.h>
+#include <Wire.h>
 #include <EEPROM.h>
 #include <ACS712.h>
 #include <ezButton.h>
@@ -8,6 +9,7 @@
 
 
 #define MAX_CURRENT 1500
+#define MAX_MODULES 20
 
 /*** Pin Setups ***/
 #define RST_PIN 2
@@ -70,6 +72,7 @@ void setup() {
     module_config.type = 1; //American plug
   }
 
+  i2cInit();
   sensInit();
   serialInit();
   establishContact();
