@@ -3,12 +3,9 @@ int cmdLength;
 char cmdBuf[96];
 
 void serialInit() {
-  Serial.swap(0);
-  Serial.begin(9600);
-  
   Serial1.swap(0);
   Serial1.begin(9600);
-  
+
   Serial1.swap(0);
   Serial2.begin(9600);
 }
@@ -19,11 +16,8 @@ void establishContact() {
 
   while (Serial1.available() <= 0) {
     sendCmd(Serial1, CMD_REQ_ADR);
-
-    digitalWrite(LED_PIN, HIGH);
-    delay(50);
-    digitalWrite(LED_PIN, LOW);
-    delay(241);
+    led.blinkSingle(300);
+    delay(300);
   }
 }
 
@@ -33,7 +27,8 @@ void receiveSerial1() {
 
     switch (cmd) {
       case CMD_LOAD_MODULE:
-        digitalWrite(LED_PIN, LOW);
+        led.setOffSingle();
+
         if (cmdLength < 1) return;
 
         sendCmd(Serial2, CMD_HI);
@@ -81,9 +76,13 @@ void receiveSerial1() {
         for (int i = 0; i < cmdLength; i++) {
           if (cmdBuf[i] != module_status.addr) continue; //not my turn
 
+          //eepromFormat(MODULE_CONFIG_EEPROM_ADDR, module_config);
+          EEPROM.put(MODULE_CONFIG_EEPROM_ADDR, module_config);
+
           turnSwitch(module_config.switchState);
           module_status.completeInit = true;
-          digitalWrite(LED_PIN, HIGH);
+
+          led.setOnSingle();
         }
         break;
 

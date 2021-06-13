@@ -1,42 +1,26 @@
 bool currentSensorCalibrated = false;
 
-/***
-   Basic Functions
-*/
+ACS712 currentSens(CURRENT_SENSOR_PIN, 5.0, 1024, 100);
+
+sllib led(LED_PIN);
+
 void sensInit() {
   //digitalWrite(RST_PIN, HIGH);
 
+  //pinMode(RST_PIN, OUTPUT);
   pinMode(RELAY_PIN, OUTPUT);
   pinMode(LED_PIN, OUTPUT);
-  //pinMode(RST_PIN, OUTPUT);
-  pinMode(CURRENT_SENSOR_PIN, INPUT);
+  //pinMode(CURRENT_SENSOR_PIN, INPUT);
 
-  currentSens.autoMidPoint(60);
-  while (!currentSensorCalibrated) getCurrent(2000);
+  //currentSens.autoMidPoint(60);
+  //while (!currentSensorCalibrated) getCurrent(2000);
 }
 
 void sensLoop() {
+  led.update();
 }
 
-void blinkLED(int times) {
-  blinkLED(times, 200);
-}
-
-void blinkLED(int times, int interval) {
-  int origin = digitalRead(LED_PIN);
-
-  digitalWrite(LED_PIN, LOW);
-
-  for (int i = 0; i < times; i++) {
-    digitalWrite(LED_PIN, HIGH);
-    delay(interval);
-    digitalWrite(LED_PIN, LOW);
-    delay(interval);
-  }
-
-  digitalWrite(LED_PIN, origin);
-}
-
+/*** Relay ***/
 void turnSwitch() {
   turnSwitch((module_config.switchState == false) ? HIGH : LOW);
 }
@@ -45,15 +29,16 @@ void turnSwitch(int state) {
   if (module_status.current >= MAX_CURRENT) state = false;
 
   module_config.switchState = state;
+ 
+  sendUpdateMaster(Serial1, MODULE_SWITCH_STATE, (int)state);
+  eepromUpdate(MODULE_CONFIG_EEPROM_ADDR, module_config); //save state
 
   digitalWrite(RELAY_PIN, state);
-  sendUpdateMaster(Serial1, MODULE_SWITCH_STATE, (int)state);
-  //eeprom_write(module_config_eeprom_address, module_config); //save state
-
-  Serial.print("[SENSOR] Relay state changes to ");
-  Serial.println(state);
+  Serial.print("[SENSOR] Relay state changes to "); Serial.println(state);
 }
 
+
+/*** Current Sensor ***/
 unsigned long pt = millis();
 
 int getCurrent() {
