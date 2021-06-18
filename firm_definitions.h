@@ -34,4 +34,11 @@
 #define MODULE_SWITCH_STATE    0x61 //'a' 
 #define MODULE_CURRENT         0x62 //'b'
 
+typedef enum CMD_STATE {
+  RC_NONE,
+  RC_HEADER,
+  RC_PAYLOAD,
+  RC_CHECK
+};
+
 #endif
