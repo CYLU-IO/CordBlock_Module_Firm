@@ -4,7 +4,7 @@ void buttonInit() {
   button.setLongClickTime(3000);
   button.setDoubleClickTime(400);
 
-  button.setClickHandler(click);
+  button.setTapHandler(btnTap);
   button.setLongClickHandler(longClick);
   button.setDoubleClickHandler(doubleClick);
   button.setTripleClickHandler(tripleClick);
@@ -14,7 +14,7 @@ void buttonLoop() {
   button.loop();
 }
 
-void click(Button2& btn) {
+void btnTap(Button2& btn) {
   turnSwitch();
 }
 

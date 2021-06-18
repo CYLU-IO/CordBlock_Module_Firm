@@ -14,32 +14,36 @@ struct config_t {
   int type;
   char name[25];
   bool switchState;
-  bool initialized;
+  int initialized;
 } module_config;
 
 struct Module_status {
   int addr;
   int current;
+  int controlTask;
   bool initialized;
   bool completeInit;
   bool lastModule;
 } module_status;
 
 void setup() {
+#if DEBUG
+  Serial.begin(9600);
+#endif
+
   i2cInit();
   sensInit();
   serialInit();
   eepromInit();
   buttonInit();
-  
-  establishContact();
-  Serial.begin(9600);
 }
 
 void loop() {
   sensLoop();
   buttonLoop();
-  
+
+  establishContact();
+
   receiveSerial1();
   receiveSerial2();
 }

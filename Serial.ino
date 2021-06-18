@@ -6,18 +6,19 @@ void serialInit() {
   Serial1.swap(0);
   Serial1.begin(9600);
 
-  Serial1.swap(0);
+  Serial2.swap(0);
   Serial2.begin(9600);
 }
 
 void establishContact() {
-  clearSerial(Serial1);
-  clearSerial(Serial2);
-
-  while (Serial1.available() <= 0) {
-    sendCmd(Serial1, CMD_REQ_ADR);
-    led.blinkSingle(300);
-    delay(300);
+  static unsigned long t;
+  
+  if (!module_status.initialized) {
+    if (millis() - t > 300) {
+      sendCmd(Serial1, CMD_REQ_ADR);
+      led.blinkSingle(50);
+      t = millis();
+    }
   }
 }
 
@@ -34,10 +35,11 @@ void receiveSerial1() {
         sendCmd(Serial2, CMD_HI);
         module_status.addr = (int)cmdBuf[0] + 1; //update self-addr as the increasement of the previous addr
 
-        if (!module_config.initialized) {
+        if (module_config.initialized != 0x01) {
           module_config.id = random(1000, 9999);
           strcpy(module_config.name, (String("Switch ") + String(module_status.addr)).c_str());
-          module_config.initialized = true;
+          module_config.type = 1; //American plug
+          module_config.initialized = 0x01;
         }
 
         delay(100);
@@ -76,33 +78,17 @@ void receiveSerial1() {
         for (int i = 0; i < cmdLength; i++) {
           if (cmdBuf[i] != module_status.addr) continue; //not my turn
 
-          //eepromFormat(MODULE_CONFIG_EEPROM_ADDR, module_config);
           EEPROM.put(MODULE_CONFIG_EEPROM_ADDR, module_config);
 
           turnSwitch(module_config.switchState);
           module_status.completeInit = true;
 
+#if DEBUG
+          Serial.print("[UART] Module id: ");
+          Serial.println(module_config.id);
+#endif
+
           led.setOnSingle();
-        }
-        break;
-
-      case CMD_DO_MODULE:
-        if (cmdLength < 2) return; //at least needs a targeted address
-
-        sendCmd(Serial2, CMD_DO_MODULE, cmdBuf, cmdLength); //pass first
-
-        for (int i = 1; i < cmdLength; i++) {
-          if (cmdBuf[i] != module_status.addr) continue; //not my turn
-
-          switch ((uint8_t)cmdBuf[0]) { //actions
-            case DO_TURN_ON:
-              turnSwitch(HIGH);
-              break;
-
-            case DO_TURN_OFF:
-              turnSwitch(LOW);
-              break;
-          }
         }
         break;
     }
@@ -161,25 +147,92 @@ void sendUpdateMaster(Stream &_serial, char type, int value) {
 }
 
 /*** Util ***/
+/*char receiveCmd(Stream &_serial) {
+  Stream* serial = &_serial;
+
+  static enum {
+    RC_NONE, RC_HEADER, RC_PAYLOAD, RC_CHECK
+  } state = RC_NONE;
+
+  static char cmd_byte;
+  static size_t buffer_pos;
+
+  switch (state) {
+    case RC_NONE: {
+        if (serial->available() < 1 || (uint8_t)serial->read() != CMD_START) break;
+
+        state = RC_HEADER;
+      }
+
+    case RC_HEADER: {
+        if (serial->available() < 3) break;
+
+        cmd_byte = serial->read();
+
+        cmdLength = serial->read();
+        cmdLength |= (uint16_t) serial->read() << 8;
+
+  #if DEBUG
+        Serial.print("[UART] Content length: ");
+        Serial.println(cmdLength);
+  #endif
+
+        buffer_pos = 0;
+
+        state = RC_PAYLOAD;
+      }
+
+    case RC_PAYLOAD: {
+        if (serial->available()) {
+          cmdBuf[buffer_pos++] = serial->read();
+        }
+
+        if (buffer_pos < cmdLength) break;
+
+        state = RC_CHECK;
+      }
+
+    case RC_CHECK: {
+        if (serial->available() < 2) break;
+
+        uint8_t checksum = serial->read(); //checksum
+
+        if (serial->read() != CMD_EOF) {
+          state = RC_NONE;
+          break;
+        }
+
+        state = RC_NONE;
+
+        return cmd_byte;
+      }
+  }
+
+  return CMD_FAIL;
+  }*/
 char receiveCmd(Stream &_serial) {
   Stream* serial = &_serial;
 
   uint8_t cb = serialRead(_serial);
 
   if (cb == CMD_START) {
-    char cmd = serialRead(_serial); //cmd_byte
+    char cmd = serialRead(_serial);
 
     uint16_t length = serialRead(_serial);
     cmdLength = length | serialRead(_serial) << 8;
 
+#if DEBUG
+    Serial.print("[UART] Content length: ");
+    Serial.println(cmdLength);
+#endif
+
     if (cmdLength > sizeof(cmdBuf)) { //oversize
-      eraseCmdBuf();
+      cmdLength = 0;
       while (serialRead(_serial) != CMD_EOF);
       return CMD_FAIL;
     }
 
     int buf_count = 0;
-    if (length > 0) eraseCmdBuf();
 
     while (buf_count != cmdLength) {
       cmdBuf[buf_count] = serialRead(_serial);
@@ -225,10 +278,6 @@ char serialRead(Stream &_serial) {
     delay(1);
 
   return (uint8_t)serial->read();
-}
-
-void eraseCmdBuf() {
-  for (int i = 0; i < sizeof(cmdBuf); i++) cmdBuf[i] = 0x00;
 }
 
 void clearSerial(Stream &_serial) {

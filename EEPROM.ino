@@ -5,11 +5,14 @@
 void eepromInit() {
   EEPROM.get(MODULE_CONFIG_EEPROM_ADDR, module_config);
 
-  if (module_config.initialized == 0xFF
+  if (module_config.initialized != 0x01
       || module_config.id < 1000
-      || module_config.id > 9999) eepromFormat(MODULE_CONFIG_EEPROM_ADDR, module_config);
-
-  if (!module_config.initialized) module_config.type = 1; //American plug
+      || module_config.id > 9999) {
+    eepromFormat(MODULE_CONFIG_EEPROM_ADDR, module_config);
+#if DEBUG
+    Serial.println("[EEPROM] Formatiing");
+#endif
+  }
 
   reseedRandom((uint32_t*)(RANDOMSEED_EEPROM_ADDR));
 }

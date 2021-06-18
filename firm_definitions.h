@@ -3,12 +3,14 @@
 
 #define MAX_CURRENT            1500
 #define MAX_MODULES            20
+#define DEBUG                  0
 
 /*** Pin Setups ***/
 #define BUTTON_PIN             3
 #define RELAY_PIN              5
 #define LED_PIN                6
-#define RST_PIN                13
+#define RST_PIN                12
+#define ON_BOARD_LED_PIN       13
 #define CURRENT_SENSOR_PIN     A3
 
 /*** SERIAL ***/
@@ -22,7 +24,7 @@
 #define CMD_INIT_MODULE        0x49 //'I'
 #define CMD_LINK_MODULE        0x4C //'L'
 #define CMD_UPDATE_MASTER      0x55 //'U'
-#define CMD_START              0x01
+#define CMD_START              0xFF
 
 /*** Module Actions ***/
 #define DO_TURN_ON             0x6E //'n'

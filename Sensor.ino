@@ -10,14 +10,28 @@ void sensInit() {
   //pinMode(RST_PIN, OUTPUT);
   pinMode(RELAY_PIN, OUTPUT);
   pinMode(LED_PIN, OUTPUT);
-  //pinMode(CURRENT_SENSOR_PIN, INPUT);
+  pinMode(ON_BOARD_LED_PIN, OUTPUT);
+  pinMode(CURRENT_SENSOR_PIN, INPUT);
 
-  //currentSens.autoMidPoint(60);
-  //while (!currentSensorCalibrated) getCurrent(2000);
+  currentSens.autoMidPoint(60);
+  getCurrent(2000);
 }
 
 void sensLoop() {
   led.update();
+  getCurrent();
+
+  switch (module_status.controlTask) {
+    case DO_TURN_ON:
+      turnSwitch(HIGH);
+      break;
+
+    case DO_TURN_OFF:
+      turnSwitch(LOW);
+      break;
+  }
+
+  module_status.controlTask = 0;
 }
 
 /*** Relay ***/
@@ -29,12 +43,16 @@ void turnSwitch(int state) {
   if (module_status.current >= MAX_CURRENT) state = false;
 
   module_config.switchState = state;
- 
+
   sendUpdateMaster(Serial1, MODULE_SWITCH_STATE, (int)state);
   eepromUpdate(MODULE_CONFIG_EEPROM_ADDR, module_config); //save state
 
   digitalWrite(RELAY_PIN, state);
+  digitalWrite(ON_BOARD_LED_PIN, state);
+
+#if DEBUG
   Serial.print("[SENSOR] Relay state changes to "); Serial.println(state);
+#endif
 }
 
 
@@ -46,6 +64,10 @@ int getCurrent() {
   int current = getCurrent(200);
 
   if (previous_current != current) {
+#if DEBUG
+    //Serial.print("[SENSOR] Current: "); Serial.println(current);
+#endif
+
     //sendUpdateMaster(Serial, MODULE_CURRENT, (int)current);
     previous_current = current;
   }
