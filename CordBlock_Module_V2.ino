@@ -23,7 +23,7 @@ struct Module_status {
   int controlTask;
   bool initialized;
   bool completeInit;
-  bool lastModule;
+  bool serial2Active;
 } module_status;
 
 void setup() {
@@ -45,10 +45,11 @@ void loop() {
   sensLoop();
   buttonLoop();
 
-  establishContact();
-
   receiveSerial1();
   receiveSerial2();
+
+  establishContact();
+  nextModuleLiveDetect();
 
 #if ENABLE_I2C_CMD
   i2cReceiveCmd();

@@ -1,5 +1,4 @@
 StaticJsonDocument<96> data;
-
 void serialInit() {
   Serial1.swap(0);
   Serial1.begin(9600);
@@ -13,10 +12,35 @@ void establishContact() {
 
   if (!module_status.initialized) {
     if (millis() - t > 300) {
-      sendCmd(Serial1, CMD_REQ_ADR);
-      led.blinkSingle(50);
+      sendReq(Serial1);
+
       t = millis();
     }
+  }
+}
+
+void nextModuleLiveDetect() {
+  static unsigned long t;
+  static bool previous;
+  static bool sent;
+
+  if (!sent) {
+    previous = module_status.serial2Active;
+
+    if (module_status.completeInit) {
+      sendCmd(Serial2, CMD_HI);
+      sent = true;
+      module_status.serial2Active = false;
+    }
+
+    t = millis();
+  }
+
+  if (millis() - t > LIVE_DETECT_INTERVAL) {
+    if (module_status.completeInit && module_status.serial2Active != previous)
+      sendReq(Serial1);
+
+    sent = false;
   }
 }
 
@@ -48,8 +72,6 @@ void receiveSerial1() {
       delay(100);
 
       if (Serial2.available() == 0) { //last module
-        module_status.lastModule = true;
-
         data["total"] = module_status.addr;
         data["addr"] = module_status.addr;
         data["id"] = module_config.id;
@@ -64,6 +86,8 @@ void receiveSerial1() {
       } else {
         clearSerial(Serial2);
         sendAddress(Serial2);
+
+        module_status.serial2Active = true;
       }
 
       module_status.initialized = true;
@@ -139,6 +163,10 @@ void receiveSerial2() {
       sendCmd(Serial1, CMD_UPDATE_MASTER, buffer, length);
       break;
 
+    case CMD_HI:
+      module_status.serial2Active = true;
+      break;
+
     case CMD_LINK_MODULE:
       sendCmd(Serial1, CMD_LINK_MODULE, buffer, length); //pass first
       DeserializationError err = deserializeJson(data, buffer);
@@ -158,12 +186,18 @@ void receiveSerial2() {
         sendCmd(Serial1, CMD_LINK_MODULE, p, l);
         free(p);
 
+        module_status.serial2Active = true;
 #if DEBUG
         Serial.println("[UART] Sending module data");
 #endif
       }
       break;
   }
+}
+
+void sendReq(Stream &_serial) {
+  sendCmd(_serial, CMD_REQ_ADR);
+  led.blinkSingle(50);
 }
 
 void sendAddress(Stream &_serial) {

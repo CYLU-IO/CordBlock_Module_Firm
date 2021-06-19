@@ -4,6 +4,8 @@
 #define MAX_CURRENT            1500
 #define MAX_MODULES            20
 
+#define LIVE_DETECT_INTERVAL   1000
+
 #define DEBUG                  0
 #define ENABLE_I2C_CMD         0
 
