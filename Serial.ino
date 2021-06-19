@@ -28,78 +28,96 @@ void receiveSerial1() {
   static int buffer_pos;
   static char buffer[96];
 
-  if (Serial1.available()) {
-    switch (receiveCmd(Serial1, state, cmd, length, buffer_pos, buffer)) {
-      case CMD_LOAD_MODULE:
-        led.setOffSingle();
 
-        if (length < 1) return;
+  switch (receiveCmd(Serial1, state, cmd, length, buffer_pos, buffer)) {
+    case CMD_LOAD_MODULE:
+      led.setOffSingle();
 
-        sendCmd(Serial2, CMD_HI);
-        module_status.addr = (int)buffer[0] + 1; //update self-addr as the increasement of the previous addr
+      if (length < 1) return;
 
-        if (module_config.initialized != 0x01) {
-          module_config.id = random(1000, 9999);
-          strcpy(module_config.name, (String("Switch ") + String(module_status.addr)).c_str());
-          module_config.type = 1; //American plug
-          module_config.initialized = 0x01;
-        }
+      sendCmd(Serial2, CMD_HI);
+      module_status.addr = (int)buffer[0] + 1; //update self-addr as the increasement of the previous addr
 
-        delay(100);
+      if (module_config.initialized != 0x01) {
+        module_config.id = random(1000, 9999);
+        strcpy(module_config.name, (String("Switch ") + String(module_status.addr)).c_str());
+        module_config.type = 1; //American plug
+        module_config.initialized = 0x01;
+      }
 
-        if (Serial2.available() == 0) { //last module
-          module_status.lastModule = true;
+      delay(100);
 
-          data["total"] = module_status.addr;
-          data["addr"] = module_status.addr;
-          data["id"] = module_config.id;
-          data["switch_state"] = (int)module_config.switchState;
-          data["name"] = module_config.name;
+      if (Serial2.available() == 0) { //last module
+        module_status.lastModule = true;
 
-          int l = measureJson(data);
-          char *p = (char*)malloc(l * sizeof(char));
-          serializeJson(data, p, l);
-          sendCmd(Serial1, CMD_LINK_MODULE, p, l);
-          free(p);
-        } else {
-          clearSerial(Serial2);
-          sendAddress(Serial2);
-        }
+        data["total"] = module_status.addr;
+        data["addr"] = module_status.addr;
+        data["id"] = module_config.id;
+        data["switch_state"] = (int)module_config.switchState;
+        data["name"] = module_config.name;
 
-        module_status.initialized = true;
+        int l = measureJson(data);
+        char *p = (char*)malloc(l * sizeof(char));
+        serializeJson(data, p, l);
+        sendCmd(Serial1, CMD_LINK_MODULE, p, l);
+        free(p);
+      } else {
+        clearSerial(Serial2);
+        sendAddress(Serial2);
+      }
 
-#if DEBUG
-        Serial.println("[UART] Module status: initialized");
-#endif
-        break;
-
-      case CMD_HI:
-        sendCmd(Serial1, CMD_HI);
-        break;
-
-      case CMD_INIT_MODULE:
-        if (length < 1) return; //at least needs a targeted address
-
-        sendCmd(Serial2, CMD_INIT_MODULE, buffer, length); //pass first
-
-        for (int i = 0; i < length; i++) {
-          if (buffer[i] != module_status.addr) continue; //not my turn
-
-          EEPROM.put(MODULE_CONFIG_EEPROM_ADDR, module_config);
-
-          turnSwitch(module_config.switchState);
-          module_status.completeInit = true;
+      module_status.initialized = true;
 
 #if DEBUG
-          Serial.print("[UART] Module id: ");
-          Serial.println(module_config.id);
+      Serial.println("[UART] Module status: initialized");
+      Serial.print("[UART] Module addr: ");
+      Serial.println(module_status.addr);
+#endif
+      break;
+
+    case CMD_HI:
+      sendCmd(Serial1, CMD_HI);
+      break;
+
+    case CMD_INIT_MODULE:
+      if (length < 1) return; //at least needs a targeted address
+
+      sendCmd(Serial2, CMD_INIT_MODULE, buffer, length); //pass first
+
+      for (int i = 0; i < length; i++) {
+        if (buffer[i] != module_status.addr) continue; //not my turn
+
+        EEPROM.put(MODULE_CONFIG_EEPROM_ADDR, module_config);
+
+        turnSwitch(module_config.switchState);
+        module_status.completeInit = true;
+
+        led.setOnSingle();
+
+#if DEBUG
+        Serial.print("[UART] Module id: ");
+        Serial.println(module_config.id);
 #endif
 
-          led.setOnSingle();
-        }
         break;
-    }
+      }
+      break;
+
+    case CMD_DO_MODULE:
+      if (length < 2) return; //at least needs a pair action
+
+      sendCmd(Serial2, CMD_DO_MODULE, buffer, length); //pass first
+
+      for (int i = 0; i < length / 2; i++) {
+        if (buffer[i * 2] != module_status.addr) continue;
+
+        module_status.controlTask = (uint8_t)buffer[i * 2 + 1];
+        break;
+      }
+
+      break;
   }
+
 }
 
 void receiveSerial2() {
@@ -112,39 +130,39 @@ void receiveSerial2() {
   static int buffer_pos;
   static char buffer[96];
 
-  if (Serial2.available()) {
-    switch (receiveCmd(Serial2, state, cmd, length, buffer_pos, buffer)) {
-      case CMD_REQ_ADR:
-        sendAddress(Serial2);
-        break;
+  switch (receiveCmd(Serial2, state, cmd, length, buffer_pos, buffer)) {
+    case CMD_REQ_ADR:
+      sendAddress(Serial2);
+      break;
 
-      case CMD_UPDATE_MASTER:
-        sendCmd(Serial1, CMD_UPDATE_MASTER, buffer, length);
-        break;
+    case CMD_UPDATE_MASTER:
+      sendCmd(Serial1, CMD_UPDATE_MASTER, buffer, length);
+      break;
 
-      case CMD_LINK_MODULE:
-        sendCmd(Serial1, CMD_LINK_MODULE, buffer, length); //pass first
-        DeserializationError err = deserializeJson(data, buffer);
+    case CMD_LINK_MODULE:
+      sendCmd(Serial1, CMD_LINK_MODULE, buffer, length); //pass first
+      DeserializationError err = deserializeJson(data, buffer);
 
-        if (err == DeserializationError::Ok) {
-          if (data["id"].as<int>() == module_config.id) module_config.id = random(1000, 9999); //conflict id
-          if (data["addr"].as<int>() - 1 != module_status.addr) return; //not my turn yet
+      if (err == DeserializationError::Ok) {
+        if (data["id"].as<int>() == module_config.id) module_config.id = random(1000, 9999); //conflict id
+        if (data["addr"].as<int>() - 1 != module_status.addr) return; //not my turn yet
 
-          data["addr"] = module_status.addr;
-          data["id"] = module_config.id;
-          data["switch_state"] = (int)module_config.switchState;
-          data["name"] = module_config.name;
+        data["addr"] = module_status.addr;
+        data["id"] = module_config.id;
+        data["switch_state"] = (int)module_config.switchState;
+        data["name"] = module_config.name;
 
-          int l = measureJson(data);
-          char *p = (char*)malloc(l * sizeof(char));
-          serializeJson(data, p, l);
-          sendCmd(Serial1, CMD_LINK_MODULE, p, l);
-          free(p);
-        } else {
-          sendAddress(Serial2);
-        }
-        break;
-    }
+        int l = measureJson(data);
+        char *p = (char*)malloc(l * sizeof(char));
+        serializeJson(data, p, l);
+        sendCmd(Serial1, CMD_LINK_MODULE, p, l);
+        free(p);
+
+#if DEBUG
+        Serial.println("[UART] Sending module data");
+#endif
+      }
+      break;
   }
 }
 
@@ -169,8 +187,17 @@ char receiveCmd(Stream &_serial, CMD_STATE &state, char &cmd, int &length, int &
   switch (state) {
     case RC_NONE: {
         cmd = CMD_FAIL;
+        if (serial->available() < 1) break;
 
-        if (serial->available() < 1 || (uint8_t)serial->read() != CMD_START) break;
+        uint8_t start_byte = serial->read();
+
+        if (start_byte != CMD_START) {
+#if DEBUG
+          Serial.print("[UART] Incorrect start byte: ");
+          Serial.println(start_byte, HEX);
+#endif
+          break;
+        }
 
         state = RC_HEADER;
       }
@@ -182,11 +209,6 @@ char receiveCmd(Stream &_serial, CMD_STATE &state, char &cmd, int &length, int &
 
         length = serial->read();
         length |= (uint16_t) serial->read() << 8;
-
-#if DEBUG
-        Serial.print("[UART] Content length: ");
-        Serial.println(length);
-#endif
 
         buffer_pos = 0;
 
@@ -207,19 +229,18 @@ char receiveCmd(Stream &_serial, CMD_STATE &state, char &cmd, int &length, int &
         if (serial->available() < 2) break;
 
         uint8_t checksum = serial->read();
-
         uint8_t eof = serial->read();
+
+        state = RC_NONE;
 
         if (eof != CMD_EOF) {
 #if DEBUG
           Serial.print("[UART] ERROR: Unexpected EOF: ");
           Serial.println(eof, HEX);
 #endif
-          state = RC_NONE;
+
           break;
         }
-
-        state = RC_NONE;
 
         return cmd;
       }
@@ -227,44 +248,6 @@ char receiveCmd(Stream &_serial, CMD_STATE &state, char &cmd, int &length, int &
 
   return CMD_FAIL;
 }
-/*char receiveCmd(Stream &_serial) {
-  Stream* serial = &_serial;
-
-  uint8_t cb = serialRead(_serial);
-
-  if (cb == CMD_START) {
-    char cmd = serialRead(_serial);
-
-    uint16_t length = serialRead(_serial);
-    length = length | serialRead(_serial) << 8;
-
-  #if DEBUG
-    Serial.print("[UART] Content length: ");
-    Serial.println(length);
-  #endif
-
-    if (length > sizeof(buffer)) { //oversize
-      length = 0;
-      while (serialRead(_serial) != CMD_EOF);
-      return CMD_FAIL;
-    }
-
-    int buf_count = 0;
-
-    while (buf_count != length) {
-      buffer[buf_count] = serialRead(_serial);
-      buf_count++;
-    }
-
-    uint8_t checksum = serialRead(_serial); //checksum
-
-    if (serialRead(_serial) != CMD_EOF && calcCRC(buffer, length) != checksum) return CMD_FAIL; //error
-
-    return cmd;
-  }
-
-  return CMD_FAIL;
-  }*/
 
 void sendCmd(Stream &_serial, char cmd, char* payload, int length) {
   Stream* serial = &_serial;

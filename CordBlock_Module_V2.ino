@@ -31,7 +31,10 @@ void setup() {
   Serial.begin(9600);
 #endif
 
+#if ENABLE_I2C_CMD
   i2cInit();
+#endif
+
   sensInit();
   serialInit();
   eepromInit();
@@ -46,4 +49,8 @@ void loop() {
 
   receiveSerial1();
   receiveSerial2();
+
+#if ENABLE_I2C_CMD
+  i2cReceiveCmd();
+#endif
 }

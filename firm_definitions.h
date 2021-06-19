@@ -3,7 +3,9 @@
 
 #define MAX_CURRENT            1500
 #define MAX_MODULES            20
+
 #define DEBUG                  0
+#define ENABLE_I2C_CMD         0
 
 /*** Pin Setups ***/
 #define BUTTON_PIN             3

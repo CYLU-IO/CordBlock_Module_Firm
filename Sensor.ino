@@ -19,7 +19,7 @@ void sensInit() {
 
 void sensLoop() {
   led.update();
-  getCurrent();
+  //getCurrent();
 
   switch (module_status.controlTask) {
     case DO_TURN_ON:
