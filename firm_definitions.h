@@ -7,13 +7,12 @@
 #define LIVE_DETECT_INTERVAL   1000
 
 #define DEBUG                  0
-#define ENABLE_I2C_CMD         0
 
 /*** Pin Setups ***/
-#define BUTTON_PIN             3
+#define LED_PIN                4
 #define RELAY_PIN              5
-#define LED_PIN                6
-#define RST_PIN                12
+#define RST_PIN                8
+#define BUTTON_PIN             10
 #define ON_BOARD_LED_PIN       13
 #define CURRENT_SENSOR_PIN     A3
 

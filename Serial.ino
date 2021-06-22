@@ -1,10 +1,17 @@
 StaticJsonDocument<96> data;
 void serialInit() {
   Serial1.swap(0);
-  Serial1.begin(9600);
+  Serial1.begin(9600); //RX: 1, TX: 0
 
   Serial2.swap(0);
-  Serial2.begin(9600);
+  Serial2.begin(9600); //RX: 7, TX: 2
+
+  /**
+     Serial 3 is used only for receiving boardcasr CMD from controller.
+     It is not allowed to send CMD.
+  */
+  Serial3.swap(0);
+  Serial3.begin(9600); //RX: 3, TX:6
 }
 
 void establishContact() {
@@ -126,20 +133,6 @@ void receiveSerial1() {
         break;
       }
       break;
-
-    case CMD_DO_MODULE:
-      if (length < 2) return; //at least needs a pair action
-
-      sendCmd(Serial2, CMD_DO_MODULE, buffer, length); //pass first
-
-      for (int i = 0; i < length / 2; i++) {
-        if (buffer[i * 2] != module_status.addr) continue;
-
-        module_status.controlTask = (uint8_t)buffer[i * 2 + 1];
-        break;
-      }
-
-      break;
   }
 
 }
@@ -193,6 +186,31 @@ void receiveSerial2() {
       }
       break;
   }
+}
+
+void receiveSerial3() {
+  static CMD_STATE state = RC_NONE;
+
+  static char cmd;
+  static int length;
+  static int buffer_pos;
+  static char buffer[MAX_MODULES * 2];
+
+  switch (receiveCmd(Serial3, state, cmd, length, buffer_pos, buffer)) {
+    case CMD_DO_MODULE:
+      if (length < 2) return; //at least needs a pair action
+
+      for (int i = 0; i < length / 2; i++) {
+        if (buffer[i * 2] != module_status.addr) continue;
+
+        module_status.controlTask = (uint8_t)buffer[i * 2 + 1];
+        break;
+      }
+
+      break;
+  }
+
+  taskLoop();
 }
 
 void sendReq(Stream &_serial) {

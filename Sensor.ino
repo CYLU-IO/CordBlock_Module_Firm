@@ -19,8 +19,11 @@ void sensInit() {
 
 void sensLoop() {
   led.update();
-  //getCurrent();
 
+  if (!Serial2.available()) getCurrent();
+}
+
+void taskLoop() {
   switch (module_status.controlTask) {
     case DO_TURN_ON:
       turnSwitch(HIGH);
@@ -68,7 +71,7 @@ int getCurrent() {
     //Serial.print("[SENSOR] Current: "); Serial.println(current);
 #endif
 
-    //sendUpdateMaster(Serial, MODULE_CURRENT, (int)current);
+    sendUpdateMaster(Serial1, MODULE_CURRENT, (int)current);
     previous_current = current;
   }
 
