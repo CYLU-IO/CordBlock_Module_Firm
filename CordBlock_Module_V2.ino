@@ -10,21 +10,26 @@
 #include "firm_definitions.h"
 
 struct config_t {
-  int id;
-  int type;
+  int  id;
+  int  type;
+  int  initialized;
   char name[25];
   bool switchState;
-  int initialized;
 } module_config;
 
 struct Module_status {
-  int addr;
-  int current;
-  int controlTask;
+  int  addr;
+  int  current;
+  int  mcub;
+  int  controlTask;
   bool initialized;
   bool completeInit;
   bool serial2Active;
 } module_status;
+
+struct Test {
+  bool overloading;
+} test;
 
 void setup() {
 #if DEBUG
@@ -40,15 +45,15 @@ void setup() {
 void loop() {
   sensLoop();
   buttonLoop();
-  
+
   receiveSerial3();
 
   receiveSerial1();
-  
+
   receiveSerial3();
-  
+
   receiveSerial2();
-  
+
   receiveSerial3();
 
   establishContact();

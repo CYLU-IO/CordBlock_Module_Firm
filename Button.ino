@@ -1,7 +1,7 @@
 Button2 button = Button2(BUTTON_PIN);
 
 void buttonInit() {
-  button.setLongClickTime(3000);
+  button.setLongClickTime(2000);
   button.setDoubleClickTime(400);
 
   button.setTapHandler(btnTap);
@@ -18,14 +18,14 @@ void btnTap(Button2& btn) {
   turnSwitch();
 }
 
-void longClick(Button2& btn) {
-  //Serial.println("long click\n");
+void longClick(Button2& btn) { //use for test overloading
+  Serial.println("[BUTTON] Long click detect");
+  test.overloading = (!test.overloading) ? true : false;
 }
 
 void doubleClick(Button2& btn) {
-  //Serial.println("double click\n");
+
 }
 
 void tripleClick(Button2& btn) {
-  //Serial.println("triple click\n");
 }

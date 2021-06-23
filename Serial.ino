@@ -170,9 +170,19 @@ void receiveSerial3() {
   static char buffer[MAX_MODULES * 2];
 
   switch (receiveCmd(Serial3, state, cmd, length, buffer_pos, buffer)) {
+    case CMD_REQ_DATA:
+      if (length < 1) return;
+
+      switch (buffer[0]) {
+        case MODULE_CURRENT:
+          sendUpdateMaster(Serial1, MODULE_CURRENT, (int)module_status.current);
+          break;
+      }
+      break;
+
     case CMD_DO_MODULE:
       if (length < 2) return;
-      
+
       for (int i = 0; i < length / 2; i++) {
         if (buffer[i * 2] != module_status.addr) continue;
 

@@ -20,7 +20,22 @@ void sensInit() {
 void sensLoop() {
   led.update();
 
-  if (!Serial2.available()) getCurrent();
+  if (!Serial2.available()) {
+    if (test.overloading) {
+      module_status.current = 1600; //16A
+    } else {
+      module_status.current = getCurrent();
+    }
+  }
+
+  /*** Overloading detection ***/
+  if (module_status.current >= MAX_CURRENT) {
+    if (module_config.switchState) module_status.controlTask = DO_TURN_OFF;
+
+    led.blinkSingle(100);
+  } else {
+    if (module_status.completeInit) led.setOnSingle();
+  }
 }
 
 void taskLoop() {
@@ -43,7 +58,10 @@ void turnSwitch() {
 }
 
 void turnSwitch(int state) {
-  if (module_status.current >= MAX_CURRENT) state = false;
+  if (module_status.current >= MAX_CURRENT) {
+    if (module_config.switchState) state = false;
+    else return;
+  }
 
   module_config.switchState = state;
 
@@ -70,8 +88,6 @@ int getCurrent() {
 #if DEBUG
     //Serial.print("[SENSOR] Current: "); Serial.println(current);
 #endif
-
-    sendUpdateMaster(Serial1, MODULE_CURRENT, (int)current);
     previous_current = current;
   }
 
