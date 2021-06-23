@@ -109,30 +109,6 @@ void receiveSerial1() {
     case CMD_HI:
       sendCmd(Serial1, CMD_HI);
       break;
-
-    case CMD_INIT_MODULE:
-      if (length < 1) return; //at least needs a targeted address
-
-      sendCmd(Serial2, CMD_INIT_MODULE, buffer, length); //pass first
-
-      for (int i = 0; i < length; i++) {
-        if (buffer[i] != module_status.addr) continue; //not my turn
-
-        EEPROM.put(MODULE_CONFIG_EEPROM_ADDR, module_config);
-
-        turnSwitch(module_config.switchState);
-        module_status.completeInit = true;
-
-        led.setOnSingle();
-
-#if DEBUG
-        Serial.print("[UART] Module id: ");
-        Serial.println(module_config.id);
-#endif
-
-        break;
-      }
-      break;
   }
 
 }
@@ -161,7 +137,7 @@ void receiveSerial2() {
       break;
 
     case CMD_LINK_MODULE:
-      sendCmd(Serial1, CMD_LINK_MODULE, buffer, length); //pass first
+      sendCmd(Serial1, CMD_LINK_MODULE, buffer, length);
       DeserializationError err = deserializeJson(data, buffer);
 
       if (err == DeserializationError::Ok) {
@@ -180,9 +156,6 @@ void receiveSerial2() {
         free(p);
 
         module_status.serial2Active = true;
-#if DEBUG
-        Serial.println("[UART] Sending module data");
-#endif
       }
       break;
   }
@@ -198,8 +171,8 @@ void receiveSerial3() {
 
   switch (receiveCmd(Serial3, state, cmd, length, buffer_pos, buffer)) {
     case CMD_DO_MODULE:
-      if (length < 2) return; //at least needs a pair action
-
+      if (length < 2) return;
+      
       for (int i = 0; i < length / 2; i++) {
         if (buffer[i * 2] != module_status.addr) continue;
 
@@ -207,6 +180,27 @@ void receiveSerial3() {
         break;
       }
 
+      break;
+
+    case CMD_INIT_MODULE:
+      if (length < 1) return;
+
+      for (int i = 0; i < length; i++) {
+        if (buffer[i] != module_status.addr) continue;
+
+        EEPROM.put(MODULE_CONFIG_EEPROM_ADDR, module_config);
+
+        turnSwitch(module_config.switchState);
+        module_status.completeInit = true;
+
+        led.setOnSingle();
+
+#if DEBUG
+        Serial.print("[UART] Module id: ");
+        Serial.println(module_config.id);
+#endif
+        break;
+      }
       break;
   }
 
