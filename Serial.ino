@@ -212,6 +212,20 @@ void receiveSerial3() {
         break;
       }
       break;
+
+    case CMD_UPDATE_MCUB:
+      if (length < 2) return;
+
+      int mcub = buffer[0] & 0xff;
+      mcub |= buffer[1] << 8;
+
+      module_status.mcub = mcub;
+
+#if DEBUG
+      Serial.print("[UART] Update MCUB: ");
+      Serial.println(module_status.mcub);
+#endif
+      break;
   }
 
   taskLoop();

@@ -20,21 +20,26 @@ void sensInit() {
 void sensLoop() {
   led.update();
 
+  /*** Update current info while serial2 isn't busy ***/
   if (!Serial2.available()) {
-    if (test.overloading) {
-      module_status.current = 1600; //16A
-    } else {
-      module_status.current = getCurrent();
-    }
+    if (test.overloading) module_status.current = 1600; //16A
+    else module_status.current = getCurrent();
   }
 
-  /*** Overloading detection ***/
+  /*** Overloading detection  ***/
   if (module_status.current >= MAX_CURRENT) {
     if (module_config.switchState) module_status.controlTask = DO_TURN_OFF;
 
     led.blinkSingle(100);
   } else {
     if (module_status.completeInit) led.setOnSingle();
+  }
+
+  /*** Maximum Current Update Barrier(MCUB) check ***/
+  if (module_status.completeInit
+      && module_status.current > 0
+      && module_status.current >= module_status.mcub) {
+    sendUpdateMaster(Serial1, MODULE_CURRENT, (int)module_status.current);
   }
 }
 
