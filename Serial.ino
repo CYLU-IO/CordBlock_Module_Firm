@@ -68,7 +68,7 @@ void receiveSerial1() {
       module_status.addr = (int)buffer[0] + 1; //update self-addr as the increasement of the previous addr
 
       if (module_config.initialized != 0x01) {
-        module_config.id = random(1000, 9999);
+        module_config.priority = 1;
         strcpy(module_config.name, (String("Switch ") + String(module_status.addr)).c_str());
         module_config.type = 1; //American plug
         module_config.initialized = 0x01;
@@ -79,7 +79,7 @@ void receiveSerial1() {
       if (Serial2.available() == 0) { //last module
         data["total"] = module_status.addr;
         data["addr"] = module_status.addr;
-        data["id"] = module_config.id;
+        data["pri"] = module_config.priority;
         data["switch_state"] = (int)module_config.switchState;
         data["name"] = module_config.name;
 
@@ -139,11 +139,10 @@ void receiveSerial2() {
       DeserializationError err = deserializeJson(data, buffer);
 
       if (err == DeserializationError::Ok) {
-        if (data["id"].as<int>() == module_config.id) module_config.id = random(1000, 9999); //conflict id
         if (data["addr"].as<int>() - 1 != module_status.addr) return; //not my turn yet
 
         data["addr"] = module_status.addr;
-        data["id"] = module_config.id;
+        data["pri"] = module_config.priority;
         data["switch_state"] = (int)module_config.switchState;
         data["name"] = module_config.name;
 
@@ -202,11 +201,6 @@ void receiveSerial3() {
         module_status.completeInit = true;
 
         led.setOnSingle();
-
-#if DEBUG
-        Serial.print("[UART] Module id: ");
-        Serial.println(module_config.id);
-#endif
         break;
       }
       break;

@@ -10,8 +10,8 @@
 #include "firm_definitions.h"
 
 struct config_t {
-  int  id;
   int  type;
+  int  priority;
   int  initialized;
   char name[25];
   bool switchState;
