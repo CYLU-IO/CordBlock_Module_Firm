@@ -22,8 +22,7 @@ void sensLoop() {
 
   /*** Update current info while serial2 isn't busy ***/
   if (!Serial2.available()) {
-    if (test.overloading) module_status.current = 1600; //16A
-    else module_status.current = getCurrent();
+    if (!test.overloading) module_status.current = getCurrent();
   }
 
   /*** Overloading detection  ***/
@@ -36,10 +35,15 @@ void sensLoop() {
   }
 
   /*** Maximum Current Update Barrier(MCUB) check ***/
+  static int previousSentCurrent;
+
   if (module_status.completeInit
       && module_status.current > 0
-      && module_status.current >= module_status.mcub) {
+      && module_status.current >= module_status.mcub + module_status.current
+      && abs(previousSentCurrent - module_status.current) > 10) {
+    Serial.println("Over MCUB");
     sendUpdateMaster(Serial1, MODULE_CURRENT, (int)module_status.current);
+    previousSentCurrent = module_status.current;
   }
 }
 
@@ -75,6 +79,13 @@ void turnSwitch(int state) {
 
   digitalWrite(RELAY_PIN, state);
   digitalWrite(ON_BOARD_LED_PIN, state);
+
+  //TEST ONLY - REMOVE
+  test.overloading = module_config.switchState;
+  if (test.overloading) module_status.current = 800;
+  else module_status.current = 0;
+  
+  sendUpdateMaster(Serial1, MODULE_CURRENT, (int)module_status.current);
 
 #if DEBUG
   Serial.print("[SENSOR] Relay state changes to "); Serial.println(state);

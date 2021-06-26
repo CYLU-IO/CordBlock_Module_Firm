@@ -7,7 +7,7 @@ void serialInit() {
   Serial2.begin(9600); //RX: 7, TX: 2
 
   /**
-     Serial 3 is used only for receiving boardcasr CMD from controller.
+     Serial 3 is used only for receiving boardcast CMD from controller.
      It is not allowed to send CMD.
   */
   Serial3.swap(0);
@@ -17,12 +17,10 @@ void serialInit() {
 void establishContact() {
   static unsigned long t;
 
-  if (!module_status.initialized) {
-    if (millis() - t > 300) {
-      sendReq(Serial1);
+  if (!module_status.initialized && millis() - t > 300) {
+    sendReq(Serial1);
 
-      t = millis();
-    }
+    t = millis();
   }
 }
 
@@ -36,6 +34,7 @@ void nextModuleLiveDetect() {
 
     if (module_status.completeInit) {
       sendCmd(Serial2, CMD_HI);
+
       sent = true;
       module_status.serial2Active = false;
     }
@@ -59,12 +58,11 @@ void receiveSerial1() {
   static int buffer_pos;
   static char buffer[96];
 
-
   switch (receiveCmd(Serial1, state, cmd, length, buffer_pos, buffer)) {
     case CMD_LOAD_MODULE:
-      led.setOffSingle();
-
       if (length < 1) return;
+
+      led.setOffSingle();
 
       sendCmd(Serial2, CMD_HI);
       module_status.addr = (int)buffer[0] + 1; //update self-addr as the increasement of the previous addr
@@ -219,7 +217,7 @@ void receiveSerial3() {
       int mcub = buffer[0] & 0xff;
       mcub |= buffer[1] << 8;
 
-      module_status.mcub = mcub;
+      module_status.mcub =  mcub;
 
 #if DEBUG
       Serial.print("[UART] Update MCUB: ");
@@ -246,7 +244,11 @@ void sendAddress(Stream &_serial) {
 }
 
 void sendUpdateMaster(Stream &_serial, char type, int value) {
-  char p[3] = {module_status.addr, type, value};
+  char p[4] = {module_status.addr,
+               type,
+               value & 0xff,
+               (value >> 8) & 0xff
+              };
   sendCmd(_serial, CMD_UPDATE_MASTER, p, sizeof(p));
 }
 

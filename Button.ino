@@ -19,7 +19,6 @@ void btnTap(Button2& btn) {
 }
 
 void longClick(Button2& btn) { //use for test overloading
-  Serial.println("[BUTTON] Long click detect");
   test.overloading = (!test.overloading) ? true : false;
 }
 
