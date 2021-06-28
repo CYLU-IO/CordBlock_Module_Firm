@@ -34,3 +34,7 @@ int largest(int arr[], int n) {
 
   return max;
 }
+
+int bytesCombine(char low_byte, char high_byte) {
+  return (low_byte & 0xff) | high_byte << 8;
+}

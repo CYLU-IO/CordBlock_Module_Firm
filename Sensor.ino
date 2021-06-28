@@ -42,7 +42,7 @@ void sensLoop() {
       && module_status.current >= module_status.mcub + module_status.current
       && abs(previousSentCurrent - module_status.current) > 10) {
     Serial.println("Over MCUB");
-    sendUpdateMaster(Serial1, MODULE_CURRENT, (int)module_status.current);
+    sendUpdateData(Serial1, MODULE_CURRENT, (int)module_status.current);
     previousSentCurrent = module_status.current;
   }
 }
@@ -74,8 +74,8 @@ void turnSwitch(int state) {
 
   module_config.switchState = state;
 
-  sendUpdateMaster(Serial1, MODULE_SWITCH_STATE, (int)state);
-  eepromUpdate(MODULE_CONFIG_EEPROM_ADDR, module_config); //save state
+  sendUpdateData(Serial1, MODULE_SWITCH_STATE, (int)state);
+  eepromUpdate(MODULE_CONFIG_EEPROM_ADDR, module_config); //save
 
   digitalWrite(RELAY_PIN, state);
   digitalWrite(ON_BOARD_LED_PIN, state);
@@ -85,7 +85,7 @@ void turnSwitch(int state) {
   if (test.overloading) module_status.current = 800;
   else module_status.current = 0;
   
-  sendUpdateMaster(Serial1, MODULE_CURRENT, (int)module_status.current);
+  sendUpdateData(Serial1, MODULE_CURRENT, (int)module_status.current);
 
 #if DEBUG
   Serial.print("[SENSOR] Relay state changes to "); Serial.println(state);

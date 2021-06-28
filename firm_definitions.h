@@ -27,8 +27,7 @@
 #define CMD_HI                  0x48 //'H'
 #define CMD_INIT_MODULE         0x49 //'I'
 #define CMD_LINK_MODULE         0x4C //'L'
-#define CMD_UPDATE_MASTER       0x55 //'U'
-#define CMD_UPDATE_MCUB         0x56 //'V'
+#define CMD_UPDATE_DATA         0x55 //'U'
 #define CMD_START               0xFF
 
 /*** Module Actions ***/
@@ -38,6 +37,8 @@
 /*** Characteristic Type ***/
 #define MODULE_SWITCH_STATE     0x61 //'a' 
 #define MODULE_CURRENT          0x62 //'b'
+#define MODULE_MCUB             0x63 //'c'
+#define MODULE_PRIORITY         0x64 //'d'
 
 typedef enum CMD_STATE {
   RC_NONE,

@@ -68,7 +68,9 @@ void receiveSerial1() {
       module_status.addr = (int)buffer[0] + 1; //update self-addr as the increasement of the previous addr
 
       if (module_config.initialized != 0x01) {
-        module_config.priority = 1;
+        //module_config.priority = 1;
+        module_config.priority = module_status.addr; //FOR TEST- Remove
+
         strcpy(module_config.name, (String("Switch ") + String(module_status.addr)).c_str());
         module_config.type = 1; //American plug
         module_config.initialized = 0x01;
@@ -126,8 +128,8 @@ void receiveSerial2() {
       sendAddress(Serial2);
       break;
 
-    case CMD_UPDATE_MASTER:
-      sendCmd(Serial1, CMD_UPDATE_MASTER, buffer, length);
+    case CMD_UPDATE_DATA:
+      sendCmd(Serial1, CMD_UPDATE_DATA, buffer, length);
       break;
 
     case CMD_HI:
@@ -172,7 +174,7 @@ void receiveSerial3() {
 
       switch (buffer[0]) {
         case MODULE_CURRENT:
-          sendUpdateMaster(Serial1, MODULE_CURRENT, (int)module_status.current);
+          sendUpdateData(Serial1, MODULE_CURRENT, (int)module_status.current);
           break;
       }
       break;
@@ -205,18 +207,39 @@ void receiveSerial3() {
       }
       break;
 
-    case CMD_UPDATE_MCUB:
-      if (length < 2) return;
+    case CMD_UPDATE_DATA:
+      if (length < 4) return;
 
-      int mcub = buffer[0] & 0xff;
-      mcub |= buffer[1] << 8;
+      for (int i = 0; i < (length - 1) / 3; i++) {
+        int a = buffer[i * 3 + 1];
+        if (a != module_status.addr && a != 0) continue;
 
-      module_status.mcub =  mcub;
+        int value = bytesCombine(buffer[i * 3 + 2], buffer[i * 3 + 3]);
 
+        switch (buffer[0]) {
+          case MODULE_MCUB:
+            module_status.mcub = value;
+            
 #if DEBUG
-      Serial.print("[UART] Update MCUB: ");
-      Serial.println(module_status.mcub);
+            Serial.print("[UART] Update MCUB: ");
+            Serial.println(module_status.mcub);
 #endif
+            break;
+
+          case MODULE_PRIORITY:
+            module_config.priority = value;
+            eepromUpdate(MODULE_CONFIG_EEPROM_ADDR, module_config); //save
+            
+#if DEBUG
+            Serial.print("[UART] Update PRIORITY: ");
+            Serial.println(module_config.priority);
+#endif
+            break;
+        }
+
+        break;
+      }
+
       break;
   }
 
@@ -237,13 +260,13 @@ void sendAddress(Stream &_serial) {
 #endif
 }
 
-void sendUpdateMaster(Stream &_serial, char type, int value) {
+void sendUpdateData(Stream &_serial, char type, int value) {
   char p[4] = {module_status.addr,
                type,
                value & 0xff,
                (value >> 8) & 0xff
               };
-  sendCmd(_serial, CMD_UPDATE_MASTER, p, sizeof(p));
+  sendCmd(_serial, CMD_UPDATE_DATA, p, sizeof(p));
 }
 
 /*** Util ***/
