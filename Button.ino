@@ -18,7 +18,7 @@ void btnTap(Button2& btn) {
   turnSwitch();
 }
 
-void longClick(Button2& btn) { //use for test overloading
+void longClick(Button2& btn) {
   test.overloading = (!test.overloading) ? true : false;
 }
 

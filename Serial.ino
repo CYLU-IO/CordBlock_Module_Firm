@@ -219,7 +219,7 @@ void receiveSerial3() {
         switch (buffer[0]) {
           case MODULE_MCUB:
             module_status.mcub = value;
-            
+
 #if DEBUG
             Serial.print("[UART] Update MCUB: ");
             Serial.println(module_status.mcub);
@@ -228,8 +228,8 @@ void receiveSerial3() {
 
           case MODULE_PRIORITY:
             module_config.priority = value;
-            eepromUpdate(MODULE_CONFIG_EEPROM_ADDR, module_config); //save
-            
+            eepromUpdate(MODULE_CONFIG_EEPROM_ADDR, module_config);
+
 #if DEBUG
             Serial.print("[UART] Update PRIORITY: ");
             Serial.println(module_config.priority);

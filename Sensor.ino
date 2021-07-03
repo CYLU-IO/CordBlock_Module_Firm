@@ -84,7 +84,7 @@ void turnSwitch(int state) {
   test.overloading = module_config.switchState;
   if (test.overloading) module_status.current = 800;
   else module_status.current = 0;
-  
+
   sendUpdateData(Serial1, MODULE_CURRENT, (int)module_status.current);
 
 #if DEBUG
