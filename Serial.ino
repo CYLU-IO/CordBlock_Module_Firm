@@ -24,29 +24,12 @@ void establishContact() {
   }
 }
 
-void nextModuleLiveDetect() {
-  static unsigned long t;
-  static bool previous;
-  static bool sent;
-
-  if (!sent) {
-    previous = module_status.serial2Active;
-
-    if (module_status.completeInit) {
-      sendCmd(Serial2, CMD_HI);
-
-      sent = true;
-      module_status.serial2Active = false;
-    }
-
-    t = millis();
-  }
-
-  if (millis() - t > LIVE_DETECT_INTERVAL) {
-    if (module_status.completeInit && module_status.serial2Active != previous)
-      sendReq(Serial1);
-
-    sent = false;
+void ModuleLiveCheckRoutine() {
+  if (module_status.completeInit &&
+      module_status.moduleLivePrevious != module_status.moduleLiveSignal &&
+      millis() - module_status.moduleLiveSentTime > LIVE_DETECT_INTERVAL) {
+    module_status.moduleLivePrevious = module_status.moduleLiveSignal;
+    sendReq(Serial1);
   }
 }
 
@@ -68,10 +51,10 @@ void receiveSerial1() {
       module_status.addr = (int)buffer[0] + 1; //update self-addr as the increasement of the previous addr
 
       if (module_config.initialized != 0x01) {
-        //module_config.priority = 1;
-        module_config.priority = module_status.addr; //FOR TEST- Remove
+        strcpy(module_config.name, "Switch_");
+        strcat(module_config.name, String(module_status.addr).c_str());
 
-        strcpy(module_config.name, (String("Switch ") + String(module_status.addr)).c_str());
+        module_config.priority = module_status.addr;
         module_config.type = 1; //American plug
         module_config.initialized = 0x01;
       }
@@ -93,8 +76,6 @@ void receiveSerial1() {
       } else {
         clearSerial(Serial2);
         sendAddress(Serial2);
-
-        module_status.serial2Active = true;
       }
 
       module_status.initialized = true;
@@ -133,7 +114,7 @@ void receiveSerial2() {
       break;
 
     case CMD_HI:
-      module_status.serial2Active = true;
+      module_status.moduleLiveSignal = true;
       break;
 
     case CMD_LINK_MODULE:
@@ -154,7 +135,8 @@ void receiveSerial2() {
         sendCmd(Serial1, CMD_LINK_MODULE, p, l);
         free(p);
 
-        module_status.serial2Active = true;
+        module_status.moduleLiveSignal = true;
+        module_status.moduleLivePrevious = true;
       }
       break;
   }
@@ -179,6 +161,14 @@ void receiveSerial3() {
       }
       break;
 
+    case CMD_HI:
+      module_status.moduleLiveSignal = false;
+      
+      sendCmd(Serial1, CMD_HI);
+      
+      module_status.moduleLiveSentTime = millis();
+      break;
+
     case CMD_DO_MODULE:
       if (length < 2) return;
 
@@ -199,7 +189,7 @@ void receiveSerial3() {
 
         EEPROM.put(MODULE_CONFIG_EEPROM_ADDR, module_config);
 
-        turnSwitch(module_config.switchState);
+        module_status.controlTask = module_config.switchState ? DO_TURN_ON : DO_TURN_OFF;
         module_status.completeInit = true;
 
         led.setOnSingle();
@@ -236,10 +226,24 @@ void receiveSerial3() {
 #endif
             break;
         }
-
         break;
       }
+      break;
 
+    case CMD_RESET_MODULE:
+      if (length < 1) return;
+
+      for (int i = 0; i < length; i++) {
+        if (buffer[i] != module_status.addr) continue;
+
+        led.setOnSingle();
+        module_config.initialized = 0x00;
+        eepromUpdate(MODULE_CONFIG_EEPROM_ADDR, module_config);
+
+        module_status.initialized = false;
+        module_status.completeInit = false;
+        break;
+      }
       break;
   }
 
@@ -305,7 +309,7 @@ char receiveCmd(Stream &_serial, CMD_STATE &state, char &cmd, int &length, int &
       }
 
     case RC_PAYLOAD: {
-        if (buffer_pos < length && serial->available()) {
+        while (buffer_pos < length && serial->available()) {
           buffer[buffer_pos++] = serial->read();
         }
 
@@ -358,15 +362,6 @@ void sendCmd(Stream &_serial, char cmd, char* payload, int length) {
 void sendCmd(Stream &_serial, char cmd) {
   char *p = 0x00;
   sendCmd(_serial, cmd, p, 0);
-}
-
-char serialRead(Stream &_serial) {
-  Stream* serial = &_serial;
-
-  while (!serial->available())
-    delay(1);
-
-  return (uint8_t)serial->read();
 }
 
 void clearSerial(Stream &_serial) {

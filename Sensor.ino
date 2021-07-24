@@ -22,7 +22,7 @@ void sensLoop() {
 
   /*** Update current info while serial2 isn't busy ***/
   if (!Serial2.available()) {
-    if (!test.overloading) module_status.current = getCurrent();
+    if (!test.overloading) module_status.current = (module_config.switchState ? getCurrent() : 0);
   }
 
   /*** Overloading detection  ***/
@@ -82,10 +82,14 @@ void turnSwitch(int state) {
 
   //TEST ONLY - REMOVE
   test.overloading = module_config.switchState;
-  if (test.overloading) module_status.current = 800;
-  else module_status.current = 0;
-
+  if (test.overloading) {
+    module_status.current = 400;
+  }
+  else {
+    module_status.current = 0;
+  }
   sendUpdateData(Serial1, MODULE_CURRENT, (int)module_status.current);
+  //
 
 #if DEBUG
   Serial.print("[SENSOR] Relay state changes to "); Serial.println(state);

@@ -22,9 +22,13 @@ struct Module_status {
   int  current;
   int  mcub;
   int  controlTask;
+  
   bool initialized;
   bool completeInit;
-  bool serial2Active;
+  
+  bool moduleLiveSignal;
+  bool moduleLivePrevious;
+  unsigned long moduleLiveSentTime;
 } module_status;
 
 struct Test {
@@ -57,7 +61,7 @@ void loop() {
   receiveSerial3();
 
   establishContact();
-  nextModuleLiveDetect();
+  ModuleLiveCheckRoutine();
 
   receiveSerial3();
 }
