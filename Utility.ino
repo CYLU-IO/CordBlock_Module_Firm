@@ -1,16 +1,12 @@
-String int2str(int n, int leng) {
-  String re = "";
+uint8_t calcCRC(uart_msg_pack* pack) {
+  static CRC8 crc;
 
-  for (int i = leng - 1; i > 0; i--) {
-    if (n / (int)(pow(10, i) + ((n % 9 == 0) ? 1 : 0)) == 0) {
-      re += "0";
-      continue;
-    }
+  crc.reset();
+  crc.setPolynome(0x05);
+  crc.add((uint8_t)pack->cmd);
+  crc.add((uint8_t*)pack->payload, pack->length);
 
-    break;
-  }
-
-  return re + String(n);
+  return crc.getCRC();
 }
 
 uint8_t calcCRC(char* str, int length) {
@@ -21,18 +17,6 @@ uint8_t calcCRC(char* str, int length) {
   crc.add((uint8_t*)str, length);
 
   return crc.getCRC();
-}
-
-int largest(int arr[], int n) {
-  int i;
-
-  int max = arr[0];
-
-  for (i = 1; i < n; i++)
-    if (arr[i] > max)
-      max = arr[i];
-
-  return max;
 }
 
 int bytesCombine(char low_byte, char high_byte) {

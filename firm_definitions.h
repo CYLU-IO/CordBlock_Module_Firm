@@ -6,7 +6,7 @@
 
 #define LIVE_DETECT_INTERVAL    1000
 
-#define DEBUG                   0
+#define DEBUG                   1
 
 /*** Pin Setups ***/
 #define LED_PIN                 4
@@ -41,11 +41,20 @@
 #define MODULE_MCUB             0x63 //'c'
 #define MODULE_PRIORITY         0x64 //'d'
 
-typedef enum CMD_STATE {
+typedef enum UART_MSG_RC_STATE {
   RC_NONE,
   RC_HEADER,
   RC_PAYLOAD,
   RC_CHECK
+};
+
+struct uart_msg_pack {
+  char cmd;
+  int length; //only payload's length
+  char *payload;
+
+  uart_msg_pack(char c) : cmd(c), length(0), payload(NULL) {};
+  uart_msg_pack(char c, int l, char *p) : cmd(c), length(l), payload(p) {};
 };
 
 #endif
