@@ -30,6 +30,7 @@ void ModuleLiveCheckRoutine() {
   }
 }
 
+///// UART Receive Logics /////
 void receiveSerial1() {
   static UART_MSG_RC_STATE state = RC_NONE;
 
@@ -38,51 +39,54 @@ void receiveSerial1() {
   static int buffer_pos;
 
   switch (uartReceive(Serial1, state, length, buffer, buffer_pos)) {
-    case CMD_LOAD_MODULE:
-      led.setOffSingle();
+    case CMD_LOAD_MODULE: {
+        led.setOffSingle();
 
-      uartTransmit(Serial2, CMD_HI);
-      module_status.addr = (int)buffer[1] + 1; //update self-addr as the increasement of the previous addr
+        uartTransmit(Serial2, CMD_HI);
+        module_status.addr = (int)buffer[1] + 1;
 
-      if (module_config.initialized != 0x01) {
-        strcpy(module_config.name, "Switch_");
-        strcat(module_config.name, String(module_status.addr).c_str());
+        if (module_config.initialized != 0x01) {
+          strcpy(module_config.name, "Switch_");
+          strcat(module_config.name, String(module_status.addr).c_str());
 
-        module_config.priority = module_status.addr;
-        module_config.type = 1; //American plug
-        module_config.initialized = 0x01;
-      }
+          module_config.priority = module_status.addr;
+          module_config.type = 1; //American plug
+          module_config.switchState = false;
+          module_config.initialized = 0x01;
+        }
 
-      delay(100);
+        delay(100);
 
-      if (Serial2.available() == 0) { //last module
-        data["total"] = module_status.addr;
-        data["addr"] = module_status.addr;
-        data["pri"] = module_config.priority;
-        data["switch_state"] = (int)module_config.switchState;
-        data["name"] = module_config.name;
+        if (Serial2.available() == 0) { //last module
+          data["total"] = module_status.addr;
+          data["addr"] = module_status.addr;
+          data["pri"] = module_config.priority;
+          data["switch_state"] = (int)module_config.switchState;
+          data["name"] = module_config.name;
 
-        int l = measureJson(data);
-        char *p = (char*)malloc(l * sizeof(char));
-        serializeJson(data, p, l);
+          int l = measureJson(data);
+          char *p = new char[l];
+          serializeJson(data, p, l);
 
-        uart_msg_pack* pack = new uart_msg_pack(CMD_LINK_MODULE, l, p);
-        uartTransmit(Serial1, pack);
-      } else {
-        clearSerial(Serial2);
-        sendAddress(Serial2);
-      }
+          uart_msg_pack* pack = new uart_msg_pack(CMD_LINK_MODULE, l, p);
+          uartTransmit(Serial1, pack);
+        } else {
+          clearSerial(Serial2);
+          sendAddress(Serial2);
+        }
 
-      module_status.initialized = true;
+        module_status.initialized = true;
 
 #if DEBUG
-      Serial.printf("[UART] Module addr: %i\n", module_status.addr);
+        Serial.printf("[UART] Module addr: %i\n", module_status.addr);
 #endif
-      break;
+        break;
+      }
 
-    case CMD_HI:
-      uartTransmit(Serial1, CMD_HI);
-      break;
+    case CMD_HI: {
+        uartTransmit(Serial1, CMD_HI);
+        break;
+      }
   }
 
 }
@@ -93,44 +97,51 @@ void receiveSerial2() {
   static UART_MSG_RC_STATE state = RC_NONE;
 
   static int length;
-  static int buffer_pos;
   static char buffer[128];
+  static int buffer_pos;
 
   switch (uartReceive(Serial2, state, length, buffer, buffer_pos)) {
-    case CMD_REQ_ADR:
-      sendAddress(Serial2);
-      break;
-
-    case CMD_UPDATE_DATA:
-      //sendCmd(Serial1, CMD_UPDATE_DATA, buffer, length);
-      break;
-
-    case CMD_HI:
-      module_status.moduleLiveSignal = true;
-      break;
-
-    case CMD_LINK_MODULE:
-      //sendCmd(Serial1, CMD_LINK_MODULE, buffer, length);
-      DeserializationError err = deserializeJson(data, buffer);
-
-      if (err == DeserializationError::Ok) {
-        if (data["addr"].as<int>() - 1 != module_status.addr) return; //not my turn yet
-
-        data["addr"] = module_status.addr;
-        data["pri"] = module_config.priority;
-        data["switch_state"] = (int)module_config.switchState;
-        data["name"] = module_config.name;
-
-        int l = measureJson(data);
-        char *p = (char*)malloc(l * sizeof(char));
-        serializeJson(data, p, l);
-        //sendCmd(Serial1, CMD_LINK_MODULE, p, l);
-        free(p);
-
-        module_status.moduleLiveSignal = true;
-        module_status.moduleLivePrevious = true;
+    case CMD_REQ_ADR: {
+        sendAddress(Serial2);
+        break;
       }
-      break;
+
+    case CMD_UPDATE_DATA: {
+        sendPassedData(Serial1, CMD_UPDATE_DATA, length, buffer);
+        break;
+      }
+
+    case CMD_HI: {
+        module_status.moduleLiveSignal = true;
+        break;
+      }
+
+    case CMD_LINK_MODULE: {
+        ///// Pass Module Data to Controller /////
+        sendPassedData(Serial1, CMD_LINK_MODULE, length, buffer);
+
+        ///// Decompose JSON /////
+        buffer[0] = ' ';
+        if (deserializeJson(data, buffer) == DeserializationError::Ok) {
+          if (data["addr"].as<int>() - 1 != module_status.addr) return; //not my turn yet
+
+          data["addr"] = module_status.addr;
+          data["pri"] = module_config.priority;
+          data["switch_state"] = (int)module_config.switchState;
+          data["name"] = module_config.name;
+
+          int l = measureJson(data);
+          char *p = new char[l];
+          serializeJson(data, p, l);
+
+          uart_msg_pack* pack = new uart_msg_pack(CMD_LINK_MODULE, l, p);
+          uartTransmit(Serial1, pack);
+
+          module_status.moduleLiveSignal = true;
+          module_status.moduleLivePrevious = true;
+        }
+        break;
+      }
   }
 }
 
@@ -144,9 +155,10 @@ void receiveSerial3() {
   switch (uartReceive(Serial3, state, length, buffer, buffer_pos)) {
     case CMD_REQ_DATA:
       switch (buffer[1]) {
-        case MODULE_CURRENT:
-          sendUpdateData(Serial1, MODULE_CURRENT, (int)module_status.current);
-          break;
+        case MODULE_CURRENT: {
+            sendUpdateData(Serial1, MODULE_CURRENT, (int)module_status.current);
+            break;
+          }
       }
       break;
 
@@ -189,22 +201,21 @@ void receiveSerial3() {
         int value = bytesCombine(buffer[i * 3 + 3], buffer[i * 3 + 4]);
 
         switch (buffer[1]) {
-          case MODULE_MCUB:
-            module_status.mcub = value;
-
+          case MODULE_MCUB: {
+              module_status.mcub = value;
 #if DEBUG
-            Serial.printf("[UART] Update MCUB: %i\n", module_status.mcub);
+              Serial.printf("[UART] Update MCUB: %i\n", module_status.mcub);
 #endif
-            break;
+              break;
 
-          case MODULE_PRIORITY:
-            module_config.priority = value;
-            eepromUpdate(MODULE_CONFIG_EEPROM_ADDR, module_config);
-
+            case MODULE_PRIORITY:
+              module_config.priority = value;
+              eepromUpdate(MODULE_CONFIG_EEPROM_ADDR, module_config);
 #if DEBUG
-            Serial.printf("[UART] Update PRIORITY: %i\n", module_config.priority);
+              Serial.printf("[UART] Update PRIORITY: %i\n", module_config.priority);
 #endif
-            break;
+              break;
+            }
         }
         break;
       }
@@ -228,24 +239,31 @@ void receiveSerial3() {
   taskLoop();
 }
 
+///// UART Command Shortcuts /////
 void sendReq(Stream &_serial) {
   led.blinkSingle(50);
   uartTransmit(_serial, CMD_REQ_ADR);
 }
 
 void sendAddress(Stream &_serial) {
-  uart_msg_pack* pack = new uart_msg_pack(CMD_LOAD_MODULE, 1, module_status.addr);
+  char *p = new char[1] {module_status.addr};
+
+  uart_msg_pack* pack = new uart_msg_pack(CMD_LOAD_MODULE, 1, p);
   uartTransmit(_serial, pack);
 }
 
 void sendUpdateData(Stream &_serial, char type, int value) {
-  char *p = (char *)malloc(4 * sizeof(char));
+  char *p = new char[4] {module_status.addr, type, value & 0xff, value >> 8};
 
-  p[0] = module_status.addr;
-  p[1] = type;
-  p[2] = value & 0xff;
-  p[3] = value >> 8;
   uart_msg_pack* pack = new uart_msg_pack(CMD_UPDATE_DATA, 4, p);
+  uartTransmit(_serial, pack);
+}
+
+void sendPassedData(Stream &_serial, char cmd, int length, char *buffer) {
+  char *p = new char[length - 1];
+  for (int i = 1; i < length; i++) p[i - 1] = buffer[i];
+
+  uart_msg_pack* pack = new uart_msg_pack(cmd, length - 1, p);
   uartTransmit(_serial, pack);
 }
 
@@ -333,7 +351,7 @@ void uartTransmit(Stream &_serial, uart_msg_pack* pack) {
   serial->write(crc);
   serial->write(CMD_EOF);
 
-  free(pack->payload);
+  if (pack->payload != NULL) delete pack->payload;
   delete pack;
 }
 void uartTransmit(Stream &_serial, char cmd) {

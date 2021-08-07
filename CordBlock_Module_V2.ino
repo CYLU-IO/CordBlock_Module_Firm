@@ -7,13 +7,13 @@
 #include <ArduinoJson.h>
 #include <singleLEDLibrary.h>
 
-#include "firm_definitions.h"
+#include "definitions.h"
 
 struct config_t {
+  char name[25];
   int  type;
   int  priority;
   int  initialized;
-  char name[25];
   bool switchState;
 } module_config;
 

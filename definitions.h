@@ -1,5 +1,5 @@
-#ifndef FIRM_DEFINITION_H
-#define FIRM_DEFINITION_H
+#ifndef DEFINITION_H
+#define DEFINITION_H
 
 #define MAX_CURRENT             1500
 #define MAX_MODULES             20
@@ -8,7 +8,10 @@
 
 #define DEBUG                   1
 
-/*** Pin Setups ***/
+///// EEPROM Address /////
+#define  MODULE_CONFIG_EEPROM_ADDR   0x00
+
+///// Pin Setups /////
 #define LED_PIN                 4
 #define RELAY_PIN               5
 #define RST_PIN                 8
@@ -16,7 +19,7 @@
 #define ON_BOARD_LED_PIN        13
 #define CURRENT_SENSOR_PIN      A3
 
-/*** SERIAL ***/
+///// UART MESSAGE STRUC /////
 #define CMD_FAIL                0x11
 #define CMD_EOF                 0x20
 #define CMD_REQ_ADR             0x41 //'A'
@@ -31,16 +34,17 @@
 #define CMD_UPDATE_DATA         0x55 //'U'
 #define CMD_START               0xFF
 
-/*** Module Actions ***/
+///// Module Actions /////
 #define DO_TURN_ON              0x6E //'n'
 #define DO_TURN_OFF             0x66 //'f'
 
-/*** Characteristic Type ***/
+///// Characteristic Type /////
 #define MODULE_SWITCH_STATE     0x61 //'a' 
 #define MODULE_CURRENT          0x62 //'b'
 #define MODULE_MCUB             0x63 //'c'
 #define MODULE_PRIORITY         0x64 //'d'
 
+///// UART RECEIVE STATE /////
 typedef enum UART_MSG_RC_STATE {
   RC_NONE,
   RC_HEADER,
