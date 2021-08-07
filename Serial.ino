@@ -39,8 +39,6 @@ void receiveSerial1() {
 
   switch (uartReceive(Serial1, state, length, buffer, buffer_pos)) {
     case CMD_LOAD_MODULE:
-      if (length < 1) return;
-
       led.setOffSingle();
 
       uartTransmit(Serial2, CMD_HI);
@@ -148,9 +146,7 @@ void receiveSerial3() {
 
   switch (uartReceive(Serial3, state, length, buffer, buffer_pos)) {
     case CMD_REQ_DATA:
-      if (length < 1) return;
-
-      switch (buffer[0]) {
+      switch (buffer[1]) {
         case MODULE_CURRENT:
           sendUpdateData(Serial1, MODULE_CURRENT, (int)module_status.current);
           break;
@@ -166,20 +162,16 @@ void receiveSerial3() {
       break;
 
     case CMD_DO_MODULE:
-      if (length < 2) return;
+      for (int i = 0; i < (length - 1) / 2; i++) {
+        if (buffer[i * 2 + 1] != module_status.addr) continue;
 
-      for (int i = 0; i < length / 2; i++) {
-        if (buffer[i * 2] != module_status.addr) continue;
-
-        module_status.controlTask = (uint8_t)buffer[i * 2 + 1];
+        module_status.controlTask = (uint8_t)buffer[i * 2 + 2];
         break;
       }
 
       break;
 
     case CMD_INIT_MODULE:
-      if (length < 2) return;
-
       for (int i = 1; i < length; i++) {
         if (buffer[i] != module_status.addr) continue;
 
@@ -194,8 +186,6 @@ void receiveSerial3() {
       break;
 
     case CMD_UPDATE_DATA:
-      if (length < 4) return;
-
       for (int i = 0; i < (length - 1) / 3; i++) {
         int a = buffer[i * 3 + 1];
         if (a != module_status.addr && a != 0) continue;
@@ -227,8 +217,6 @@ void receiveSerial3() {
       break;
 
     case CMD_RESET_MODULE:
-      if (length < 2) return;
-
       for (int i = 1; i < length; i++) {
         if (buffer[i] != module_status.addr) continue;
 
