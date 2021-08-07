@@ -26,7 +26,7 @@ void ModuleLiveCheckRoutine() {
       module_status.moduleLivePrevious != module_status.moduleLiveSignal &&
       millis() - module_status.moduleLiveSentTime > LIVE_DETECT_INTERVAL) {
     module_status.moduleLivePrevious = module_status.moduleLiveSignal;
-    sendReq(Serial1);
+    sendReq(Serial1); //The live signal is lost, requesting reconnection.
   }
 }
 
@@ -68,7 +68,6 @@ void receiveSerial1() {
 
         uart_msg_pack* pack = new uart_msg_pack(CMD_LINK_MODULE, l, p);
         uartTransmit(Serial1, pack);
-        free(p);
       } else {
         clearSerial(Serial2);
         sendAddress(Serial2);
@@ -77,9 +76,7 @@ void receiveSerial1() {
       module_status.initialized = true;
 
 #if DEBUG
-      Serial.println("[UART] Module status: initialized");
-      Serial.print("[UART] Module addr: ");
-      Serial.println(module_status.addr);
+      Serial.printf("[UART] Module addr: %i\n", module_status.addr);
 #endif
       break;
 
@@ -155,7 +152,6 @@ void receiveSerial3() {
 
     case CMD_HI:
       module_status.moduleLiveSignal = false;
-
       uartTransmit(Serial1, CMD_HI);
 
       module_status.moduleLiveSentTime = millis();
@@ -186,19 +182,18 @@ void receiveSerial3() {
       break;
 
     case CMD_UPDATE_DATA:
-      for (int i = 0; i < (length - 1) / 3; i++) {
-        int a = buffer[i * 3 + 1];
+      for (int i = 0; i < (length - 2) / 3; i++) {
+        int a = buffer[i * 3 + 2];
         if (a != module_status.addr && a != 0) continue;
 
-        int value = bytesCombine(buffer[i * 3 + 2], buffer[i * 3 + 3]);
+        int value = bytesCombine(buffer[i * 3 + 3], buffer[i * 3 + 4]);
 
-        switch (buffer[0]) {
+        switch (buffer[1]) {
           case MODULE_MCUB:
             module_status.mcub = value;
 
 #if DEBUG
-            Serial.print("[UART] Update MCUB: ");
-            Serial.println(module_status.mcub);
+            Serial.printf("[UART] Update MCUB: %i\n", module_status.mcub);
 #endif
             break;
 
@@ -207,8 +202,7 @@ void receiveSerial3() {
             eepromUpdate(MODULE_CONFIG_EEPROM_ADDR, module_config);
 
 #if DEBUG
-            Serial.print("[UART] Update PRIORITY: ");
-            Serial.println(module_config.priority);
+            Serial.printf("[UART] Update PRIORITY: %i\n", module_config.priority);
 #endif
             break;
         }
@@ -246,7 +240,7 @@ void sendAddress(Stream &_serial) {
 
 void sendUpdateData(Stream &_serial, char type, int value) {
   char *p = (char *)malloc(4 * sizeof(char));
-  
+
   p[0] = module_status.addr;
   p[1] = type;
   p[2] = value & 0xff;
@@ -255,7 +249,7 @@ void sendUpdateData(Stream &_serial, char type, int value) {
   uartTransmit(_serial, pack);
 }
 
-// /*** Foundation ***/
+///// Foundation /////
 char uartReceive(Stream &_serial, UART_MSG_RC_STATE &state, int &length, char *buffer, int &buffer_pos) {
   Stream* serial = &_serial;
 
@@ -267,8 +261,7 @@ char uartReceive(Stream &_serial, UART_MSG_RC_STATE &state, int &length, char *b
 
         if (start_byte != CMD_START) {
 #if DEBUG
-          Serial.print("[UART] Incorrect start byte: ");
-          Serial.println(start_byte, HEX);
+          Serial.printf("[UART] Incorrect start byte: %04X\n", start_byte);
 #endif
           break;
         }
@@ -307,18 +300,15 @@ char uartReceive(Stream &_serial, UART_MSG_RC_STATE &state, int &length, char *b
 
         if (checksum != calcCRC(buffer, length)) {
 #if DEBUG
-          Serial.print("[UART] ERROR: Incorrect CRC8: ");
-          Serial.println(checksum, HEX);
-          break;
+          Serial.printf("[UART] ERROR: Incorrect CRC8: %04X\n", checksum);
 #endif
+          break;
         }
 
         if (eof != CMD_EOF) {
 #if DEBUG
-          Serial.print("[UART] ERROR: Unexpected EOF: ");
-          Serial.println(eof, HEX);
+          Serial.printf("[UART] ERROR: Unexpected EOF: %04X\n", eof);
 #endif
-
           break;
         }
 

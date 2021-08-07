@@ -61,7 +61,7 @@ void loop() {
   receiveSerial3();
 
   establishContact();
-  ///ModuleLiveCheckRoutine();
+  ModuleLiveCheckRoutine();
 
   receiveSerial3();
 }
