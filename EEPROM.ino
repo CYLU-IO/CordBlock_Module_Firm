@@ -1,4 +1,5 @@
 void eepromInit() {
+  //eepromFormat(MODULE_CONFIG_EEPROM_ADDR, module_config);
   EEPROM.get(MODULE_CONFIG_EEPROM_ADDR, module_config);
   
   if (module_config.initialized != 0x01) {

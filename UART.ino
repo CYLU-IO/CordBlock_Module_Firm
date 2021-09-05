@@ -33,7 +33,6 @@ void ModuleLiveCheckRoutine() {
 ///// UART Receive Logics /////
 void receiveSerial1() {
   static UART_MSG_RC_STATE state = RC_NONE;
-
   static int length;
   static char buffer[128];
   static int buffer_pos;
@@ -45,6 +44,7 @@ void receiveSerial1() {
         uartTransmit(Serial2, CMD_HI);
         module_status.addr = (int)buffer[1] + 1;
 
+        ///// Device Initialization /////
         if (module_config.initialized != 0x01) {
           strcpy(module_config.name, "Switch_");
           strcat(module_config.name, String(module_status.addr).c_str());
@@ -57,7 +57,7 @@ void receiveSerial1() {
 
         delay(100);
 
-        if (Serial2.available() == 0) { //last module
+        if (Serial2.available() == 0) {
           data["total"] = module_status.addr;
           data["addr"] = module_status.addr;
           data["pri"] = module_config.priority;
@@ -76,7 +76,6 @@ void receiveSerial1() {
         }
 
         module_status.initialized = true;
-
 #if DEBUG
         Serial.printf("[UART] Module addr: %i\n", module_status.addr);
 #endif
@@ -88,14 +87,12 @@ void receiveSerial1() {
         break;
       }
   }
-
 }
 
 void receiveSerial2() {
   if (!module_status.initialized) return;
 
   static UART_MSG_RC_STATE state = RC_NONE;
-
   static int length;
   static char buffer[128];
   static int buffer_pos;
@@ -147,7 +144,6 @@ void receiveSerial2() {
 
 void receiveSerial3() {
   static UART_MSG_RC_STATE state = RC_NONE;
-
   static int length;
   static char buffer[128];
   static int buffer_pos;
@@ -175,8 +171,7 @@ void receiveSerial3() {
 
         module_status.controlTask = (uint8_t)buffer[i * 2 + 2];
         break;
-      }
-
+      }      
       break;
 
     case CMD_INIT_MODULE:
@@ -198,7 +193,7 @@ void receiveSerial3() {
         int a = buffer[i * 3 + 2];
         if (a != module_status.addr && a != 0) continue;
 
-        int value = bytesCombine(buffer[i * 3 + 3], buffer[i * 3 + 4]);
+        int value = buffer[i * 3 + 3] & 0xff | buffer[i * 3 + 4] << 8;
 
         switch (buffer[1]) {
           case MODULE_MCUB: {
@@ -225,7 +220,7 @@ void receiveSerial3() {
       for (int i = 1; i < length; i++) {
         if (buffer[i] != module_status.addr) continue;
 
-        led.setOnSingle();
+        led.setOffSingle();
         module_config.initialized = 0x00;
         eepromUpdate(MODULE_CONFIG_EEPROM_ADDR, module_config);
 
@@ -351,7 +346,7 @@ void uartTransmit(Stream &_serial, uart_msg_pack* pack) {
   serial->write(crc);
   serial->write(CMD_EOF);
 
-  if (pack->payload != NULL) delete pack->payload;
+  if (pack->payload != NULL) delete[] pack->payload;
   delete pack;
 }
 void uartTransmit(Stream &_serial, char cmd) {

@@ -6,7 +6,7 @@
 
 #define LIVE_DETECT_INTERVAL    1000
 
-#define DEBUG                   1
+#define DEBUG                   0
 
 ///// EEPROM Address /////
 #define  MODULE_CONFIG_EEPROM_ADDR   0x00

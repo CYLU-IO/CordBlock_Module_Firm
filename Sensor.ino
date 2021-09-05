@@ -1,7 +1,4 @@
-bool currentSensorCalibrated = false;
-
 ACS712 currentSens(CURRENT_SENSOR_PIN, 5.0, 1024, 100);
-
 sllib led(LED_PIN);
 
 void sensInit() {
@@ -20,12 +17,12 @@ void sensInit() {
 void sensLoop() {
   led.update();
 
-  /*** Update current info while serial2 isn't busy ***/
+  ///// Update Current Info /////
   if (!Serial2.available()) {
     if (!test.overloading) module_status.current = (module_config.switchState ? getCurrent() : 0);
   }
 
-  /*** Overloading detection  ***/
+  ///// Overloading Detection /////
   if (module_status.current >= MAX_CURRENT) {
     if (module_config.switchState) module_status.controlTask = DO_TURN_OFF;
 
@@ -34,7 +31,7 @@ void sensLoop() {
     if (module_status.completeInit) led.setOnSingle();
   }
 
-  /*** Maximum Current Update Barrier(MCUB) check ***/
+  ///// Maximum Current Update Barrier(MCUB) Check /////
   static int previousSentCurrent;
 
   if (module_status.completeInit
@@ -47,21 +44,7 @@ void sensLoop() {
   }
 }
 
-void taskLoop() {
-  switch (module_status.controlTask) {
-    case DO_TURN_ON:
-      turnSwitch(HIGH);
-      break;
-
-    case DO_TURN_OFF:
-      turnSwitch(LOW);
-      break;
-  }
-
-  module_status.controlTask = 0;
-}
-
-/*** Relay ***/
+///// Relay Control /////
 void turnSwitch() {
   turnSwitch((module_config.switchState == false) ? HIGH : LOW);
 }
@@ -96,8 +79,8 @@ void turnSwitch(int state) {
 #endif
 }
 
-
-/*** Current Sensor ***/
+///// Current Sensor /////
+bool currentSensorCalibrated = false;
 unsigned long pt = millis();
 
 int getCurrent() {
